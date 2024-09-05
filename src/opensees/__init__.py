@@ -1,4 +1,10 @@
-__version__  = "0.0.46"
+#===----------------------------------------------------------------------===#
+#
+#         STAIRLab -- STructural Artificial Intelligence Laboratory
+#
+#===----------------------------------------------------------------------===#
+#
+__version__  = "0.0.65"
 
 # Imports for this module
 import math

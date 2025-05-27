@@ -269,7 +269,8 @@ CreateFrame(BasicModelBuilder& builder,
                 if (!options.shear_flag) {
                   static_loop<2,30>([&](auto nip) constexpr {
                     if (nip.value == sections.size())
-                      theElement = new ForceFrame3d<nip.value, 4, nwm.value>(tag, nodes, sections,
+                      theElement = new ForceFrame3d<nip.value, 4+nwm.value*2, nwm.value>(tag, 
+                                                    nodes, sections,
                                                     beamIntegr, *tb,
                                                     mass, options.mass_flag, use_mass,
                                                     max_iter, tol
@@ -277,7 +278,8 @@ CreateFrame(BasicModelBuilder& builder,
                     });
                 }
                 else
-                  theElement = new ForceFrame3d<20, 6+nwm.value*2, nwm.value>(tag, nodes, sections,
+                  theElement = new ForceFrame3d<20, 6+nwm.value*2, nwm.value>(tag, 
+                                                nodes, sections,
                                                 beamIntegr, *tb,
                                                 mass, options.mass_flag, use_mass,
                                                 max_iter, tol

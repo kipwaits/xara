@@ -108,34 +108,8 @@ class ForceFrame3d: public BasicFrame3d,
         NEN = 2,        // number of element nodes
         NBV = 6+nwm*2,  // number of element DOFs in the basic system
         max_subdivision= 10;
-  constexpr static int NNW = 6; // number of non-warping basic DOFs
 
-  static constexpr FrameStressLayout scheme = {
-    FrameStress::N,
-    FrameStress::T,
-    FrameStress::My,
-    FrameStress::Mz,
-    FrameStress::Vy,
-    FrameStress::Vz,
-    FrameStress::Bimoment,
-    FrameStress::Bishear
-  };
-  enum : int {
-    inx = -12, //  0
-    iny = -12, //  1
-    inz = -12, //  2
-    imx = -12, //  3
-    imy =   3, //  4
-    imz =   1, //  5
-    iwx =   6, //
-    jnx =   0, //  6
-    jny = -12, //  7
-    jnz = -12, //  8
-    jmx =   5, //  9
-    jmy =   4, // 10
-    jmz =   2, // 11
-    jwx =   7,
-  };
+  constexpr static int NNW = 6; // number of non-warping basic DOFs
 
   static constexpr std::array<int, NDF*2> make_iq() {
     if constexpr (nwm) {
@@ -150,6 +124,35 @@ class ForceFrame3d: public BasicFrame3d,
       };
     }
   }
+
+  static constexpr FrameStressLayout scheme = {
+    FrameStress::N,
+    FrameStress::T,
+    FrameStress::My,
+    FrameStress::Mz,
+    (nsr-2*nwm == 6) ? FrameStress::Vy : FrameStress::Bimoment,
+    (nsr-2*nwm == 6) ? FrameStress::Vz : FrameStress::Bishear,
+    FrameStress::Bimoment,
+    FrameStress::Bishear
+  };
+  enum : int {
+    inx = -12, //  0
+    iny = -12, //  1
+    inz = -12, //  2
+    imx = -12, //  3
+    imy =   3, //  4
+    imz =   1, //  5
+    iwx =   6, //
+    //
+    jnx =   0, //  6
+    jny = -12, //  7
+    jnz = -12, //  8
+    jmx =   5, //  9
+    jmy =   4, // 10
+    jmz =   2, // 11
+    jwx =   7,
+  };
+
 
   static constexpr auto iq = make_iq();
 

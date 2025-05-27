@@ -263,12 +263,12 @@ ForceFrame3d<NIP,nsr,nwm>::revertToLastCommit()
 
   }
 
-  // Revert the transformation to last commit
+
   if (basic_system->revertToLastCommit() != 0)
     return -2;
 
 
-  // Revert the element state to last commit
+
   q_pres = q_save;
   K_pres = K_save;
 
@@ -307,22 +307,6 @@ ForceFrame3d<NIP,nsr,nwm>::revertToStart()
   // this->update();
   return 0;
 }
-
-
-// template <int NIP, int nsr, int nwm>
-// VectorND<NBV>&
-// ForceFrame3d<NIP,nsr,nwm>::getBasicForce()
-// {
-//   return q_pres;
-// }
-
-
-// template <int NIP, int nsr, int nwm>
-// MatrixND<NBV, NBV>&
-// ForceFrame3d<NIP,nsr,nwm>::getBasicTangent(State state, int rate)
-// {
-//   return K_pres;
-// }
 
 
 template <int NIP, int nsr, int nwm>
@@ -449,7 +433,6 @@ ForceFrame3d<NIP,nsr,nwm>::update()
 {
   constexpr static double TOL_SUBDIV = DBL_EPSILON;
 
-  // TODO: remove hard limit on sections
   THREAD_LOCAL VectorND<nsr>     es_trial[NIP]; //  strain
   THREAD_LOCAL VectorND<nsr>     sr_trial[NIP]; //  stress resultant
   THREAD_LOCAL MatrixND<nsr,nsr> Fs_trial[NIP]; //  flexibility
@@ -819,7 +802,7 @@ ForceFrame3d<NIP,nsr,nwm>::update()
         //    q_trial += K * (Dv + dv_trial - vr)
         //
 
-        if (Cholesky<NBV>(F).invert(K_trial) < 0) {
+        if (Cholesky<NBV>(F).invert(K_trial) < 0) [[unlikely]] {
           if constexpr (NBV < 7) {
             if (F.invert(K_trial) < 0)
               return -1;
@@ -924,6 +907,7 @@ ForceFrame3d<NIP,nsr,nwm>::getTangentStiff()
   pl[1*NDF+4]  =  q_pres[jmy];
   pl[1*NDF+5]  =  q_pres[jmz];
   for (int i=0; i<nwm; i++) {
+    // TODO
     pl[0*NDF+6+i] = -q_pres[NNW+i];
     pl[1*NDF+6+i] =  q_pres[NNW+i];
   }
@@ -939,7 +923,7 @@ ForceFrame3d<NIP,nsr,nwm>::getTangentStiff()
     int ii = std::abs(iq[i]);
     if (ii >= NBV)
       continue;
-
+    // pl[i] = q_pres[ii];
     for (int j=0; j<NDF*2; j++) {
       int jj = std::abs(iq[j]);
       if (jj >= NBV)
@@ -1246,19 +1230,15 @@ ForceFrame3d<NIP,nsr,nwm>::getStressGrad(VectorND<nsr>& dspdh, int isec, int gra
         } else {
           switch (scheme[ii]) {
           case FrameStress::Vy:
-            //sp(ii) += Vy2;
             dspdh(ii) += dVy2dh;
             break;
           case FrameStress::Vz:
-            //sp(ii) += Vz2;
             dspdh(ii) += dVz2dh;
             break;
           case FrameStress::My:
-            //sp(ii) += (L-x)*Vz2;
             dspdh(ii) += (dLdh - dxdh) * Vz2 + (L - x) * dVz2dh;
             break;
           case FrameStress::Mz:
-            //sp(ii) -= (L-x)*Vy2;
             dspdh(ii) -= (dLdh - dxdh) * Vy2 + (L - x) * dVy2dh;
             break;
           default: break;
@@ -2687,26 +2667,18 @@ ForceFrame3d<NIP,nsr,nwm>::getResistingForce()
     this->computeReactions(p0);
 
   VectorND<NDF*2> pl{};
-  pl[0*NDF+0]  = -q_pres[jnx];               // Ni
-  #ifdef DO_BASIC
-    double L = basic_system->getInitialLength();
-    const double q1 = q_pres[imz],
-                 q2 = q_pres[jmz],
-                 q3 = q_pres[imy],
-                 q4 = q_pres[jmy];
-    pl[0*NDF+1]  =  (q1 + q2)/L;      // Viy
-    pl[0*NDF+2]  = -(q3 + q4)/L;      // Viz
-    pl[1*NDF+1]  = -pl[1];            // Vjy
-    pl[1*NDF+2]  = -pl[2];            // Vjz
-  #endif
-    pl[0*NDF+3]  = -q_pres[jmx];      // Ti
-    pl[0*NDF+4]  =  q_pres[imy];
-    pl[0*NDF+5]  =  q_pres[imz];
-    pl[1*NDF+0]  =  q_pres[jnx];      // Nj
-    pl[1*NDF+3]  =  q_pres[jmx];      // Tj
-    pl[1*NDF+4]  =  q_pres[jmy];
-    pl[1*NDF+5]  =  q_pres[jmz];
+  for (int i=0; i<NDF*2; i++) {
+    int ii = std::abs(iq[i]);
+    if (ii >= NBV)
+      continue;
+    pl[i] = q_pres[ii];
+  }
 
+  pl[0*NDF+0]  = -q_pres[jnx];      // Ni
+  pl[0*NDF+3]  = -q_pres[jmx];      // Ti
+
+
+  //
   thread_local VectorND<NDF*2> pf;
   pf.zero();
   pf[0*NDF + 0] = p0[0];
@@ -2720,6 +2692,7 @@ ForceFrame3d<NIP,nsr,nwm>::getResistingForce()
 
   pg  = basic_system->t.pushResponse(pl);
   pg += basic_system->t.pushConstant(pf);
+
   if (total_mass != 0.0)
     wrapper.addVector(1.0, this->FiniteElement<2,3,6+nwm>::p_iner, -1.0);
 

@@ -579,7 +579,7 @@ ExactFrame3d<nen,nwm>::setResponse(const char** argv, int argc, OPS_Stream& outp
   }
 
   // 10-11: Integration
-  else if (strcmp(argv[0], "integrationpres") == 0)
+  else if (strcmp(argv[0], "integrationPoints") == 0)
     theResponse = new ElementResponse(this, 10, Vector(pres.size()));
 
   else if (strcmp(argv[0], "integrationWeights") == 0)

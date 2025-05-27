@@ -77,7 +77,7 @@ private:
     int computeElemtLengthAndOrient();
 
     inline VectorND<nn*ndf> 
-    pullConstant(const VectorND<nn*ndf>& ug, 
+    pullVariation(const VectorND<nn*ndf>& ug, 
                 const Matrix3D& R, 
                 const std::array<Vector3D, nn> *offset = nullptr,
                 int offset_flags = 0);
@@ -100,6 +100,7 @@ private:
           }
         }
 
+        Matrix3D R = basis.getRotation();
         // 2) Constant Rotation
         return R^v;
     }

@@ -26,7 +26,6 @@ public:
   //
   virtual MatrixND<3,6> getRotationGradient(int node) =0;
 
-  // virtual int getBasis(Vector3D&, Vector3D&, Vector3D&) =0;
 };
 
 

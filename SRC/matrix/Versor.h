@@ -54,6 +54,7 @@ struct Versor {
         double t = 0.0; // theta.norm();
         for (int i=0; i<3; i++)
             t += theta[i]*theta[i];
+
         t = std::sqrt(t);
 
         Versor q;

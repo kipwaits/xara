@@ -470,8 +470,8 @@ SouzaFrameTransf<nn,ndf>::update()
 {
   // determine global displacement increments from last iteration
 
-  const Vector& dispI = nodes[0]->getTrialDisp();
-  const Vector& dispJ = nodes[1]->getTrialDisp();
+  const Vector& dispI = nodes[   0]->getTrialDisp();
+  const Vector& dispJ = nodes[nn-1]->getTrialDisp();
 
   //
   // Update state

@@ -166,19 +166,11 @@ CayleyFromVersor(const Versor &q)
 static inline Versor
 VersorProduct(const Versor &qa, const Versor &qb)
 {
-    // const double qa0 = qa[0],
-    //              qa1 = qa[1],
-    //              qa2 = qa[2],
-    //              qa3 = qa[3],
-    //              qb0 = qb[0],
-    //              qb1 = qb[1],
-    //              qb2 = qb[2],
-    //              qb3 = qb[3];
-
     const double  qa0 = qa.vector[0],
                   qa1 = qa.vector[1],
                   qa2 = qa.vector[2],
                   qa3 = qa.scalar,
+                  //
                   qb0 = qb.vector[0],
                   qb1 = qb.vector[1],
                   qb2 = qb.vector[2],
@@ -202,14 +194,13 @@ VersorProduct(const Versor &qa, const Versor &qb)
 }
 
 
-// R = (q0^2 - q' * q) * I + 2 * q * q' + 2*q0*S(q);
+// R = (q0^2 - q' * q)*I + 2 * q * q' + 2*q0*S(q);
 static inline Matrix3D
 MatrixFromVersor(const Versor &q)
 {
     Matrix3D R{};
 
     const double factor = q.scalar*q.scalar - q.vector.dot(q.vector);
-
 
     for (int i = 0; i < 3; i++)
       R(i,i) = factor;
@@ -304,7 +295,6 @@ VersorFromMatrix(const Matrix3D &R)
 // 
 // Exponential Map
 //
-
 static inline Matrix3D
 ExpSO3(const Vector3D &theta)
 {
@@ -318,7 +308,6 @@ ExpSO3(const Vector3D &theta)
   const Matrix3D Theta = Hat(theta);
 
   return Eye3 + a[1]*Theta + a[2]*Theta*Theta;
-
 }
 
 
@@ -545,7 +534,7 @@ LogC90(const Matrix3D &R)
 
   return Vector3D {
     -std::asin(0.5*(R(1,2) - R(2,1))),
-    std::asin(0.5*(R(0,2) - R(2,0))),
+     std::asin(0.5*(R(0,2) - R(2,0))),
     -std::asin(0.5*(R(0,1) - R(1,0))),
   };
 }
@@ -569,8 +558,10 @@ LogC90_Skew(const Matrix3D &R)
 
 
 inline Matrix3D
-dLogSO3(const Vector3D &v)
+dLogSO3(const Vector3D &v, double* a=nullptr)
 {
+//
+// d_R LogSO3(v)
 //
 // =========================================================================================
 // function by Claudio Perez                                                            2023
@@ -593,10 +584,10 @@ dLogSO3(const Vector3D &v)
   double angle6 = angle*angle5;
 
   double eta;
-  if (angle > tol)
-    eta = (1-0.5*angle*cot(0.5*angle))/angle2;
+  if (angle > tol) [[unlikely]]
+    eta = (1.0 - 0.5*angle*cot(0.5*angle))/angle2;
   else
-    eta = 1/12 + angle2/720 + angle4/30240 + angle6/1209600;
+    eta = 1./12. + angle2/720. + angle4/30240. + angle6/1209600.;
 
   return Eye3 - 0.5*Sv + eta*Sv*Sv;
 }
@@ -608,7 +599,7 @@ ddLogSO3(const Vector3D& th, const Vector3D& v)
 // function by Claudio Perez                                                            2023
 // -----------------------------------------------------------------------------------------
 
-  constexpr double tol = 1/20;
+  constexpr double tol = 1./20.;
   double angle = th.norm();
 
 //if (fabs(angle) > M_PI/1.01) {
@@ -624,21 +615,21 @@ ddLogSO3(const Vector3D& th, const Vector3D& v)
 
   double eta, mu;
   if (angle < tol) {
-    eta = 1/12 + angle2/720 + angle4/30240 + angle6/1209600;
-    mu  = 1/360 + angle2/7560 + angle4/201600 + angle6/5987520;
+    eta = 1/12. + angle2/720. + angle4/30240. + angle6/1209600.;
+    mu  = 1/360. + angle2/7560. + angle4/201600. + angle6/5987520.;
 
   } else {
-    double an2 = angle/2;
+    double an2 = angle/2.;
     double sn  = std::sin(an2);
     double cs  = std::cos(an2);
 
     eta = (sn - angle2*cs)/(angle2*sn);
-    mu  = (angle*(angle + 2*sn*cs) - 8*sn*sn)/(4*angle4*sn*sn);
+    mu  = (angle*(angle + 2.*sn*cs) - 8*sn*sn)/(4*angle4*sn*sn);
   }
 
   Matrix3D St2 = Hat(th);
   St2 = St2*St2;
-  Matrix3D dH  = -0.5*Hat(v) + eta*(Eye3*th.dot(v) + th.bun(v) - 2*v.bun(th)) + mu*St2*v.bun(th);
+  Matrix3D dH  = -0.5*Hat(v) + eta*(Eye3*th.dot(v) + th.bun(v) - 2.*v.bun(th)) + mu*St2*v.bun(th);
 
   return dH*dLogSO3(th);
 }

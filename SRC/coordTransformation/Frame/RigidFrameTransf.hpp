@@ -93,15 +93,15 @@ private:
           v[i] = u[i];
 
         // 1) Offsets
-        if (offsets) {
-          if (!(offset_flags&OffsetLocal)) {
+        if (offsets) [[unlikely]] {
+          if (!(offset_flags&OffsetLocal))  {
             Vector3D w {u[3], u[4], u[5]};
             v -= offsets->at(node).cross(w);
           }
         }
 
-        Matrix3D R = basis.getRotation();
         // 2) Constant Rotation
+        Matrix3D R = basis.getRotation();
         return R^v;
     }
 
@@ -113,7 +113,6 @@ private:
     int offset_flags;
 
     Vector3D xi, xj, vz;
-    Matrix3D R0;        // rotation matrix
     double L;           // undeformed element length
 
     BasisT basis;

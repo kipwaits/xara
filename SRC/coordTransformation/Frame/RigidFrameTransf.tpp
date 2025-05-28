@@ -171,7 +171,8 @@ template <int nn, int ndf, typename BasisT>
 int
 RigidFrameTransf<nn,ndf,BasisT>::update()
 {
-  basis.update();
+  if (basis.update() < 0) 
+    return -1;
 
   Matrix3D R = basis.getRotation();
   for (int i=0; i<nn; i++) {
@@ -240,7 +241,7 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
 
   // (4) Isometry
   // TODO (nn>2)
-  // double L = basis.getLength();
+  double L = basis.getLength();
   constexpr static Vector3D iv {1,0,0};
   Vector3D uI = ul.template extract<3>(0);
   Vector3D Du = ul.template extract<3>((nn-1)*ndf) - uI;
@@ -314,7 +315,6 @@ VectorND<nn*ndf>
 RigidFrameTransf<nn,ndf,BasisT>::pushResponse(VectorND<nn*ndf>&p)
 {
   VectorND<nn*ndf> pa = p;
-  constexpr static Vector3D iv{1, 0, 0};
 
   // 1) Logarithm
 #if 1
@@ -325,7 +325,10 @@ RigidFrameTransf<nn,ndf,BasisT>::pushResponse(VectorND<nn*ndf>&p)
   }
 #endif
 
-  double L = basis.getLength();
+
+#if 0
+  constexpr static Vector3D iv{1, 0, 0};
+  // double L = basis.getLength();
   // 2a) Sum of moments: m = sum_i mi + sum_i (xi x ni)
   Vector3D m{};
   for (int i=0; i<nn; i++) {
@@ -340,7 +343,11 @@ RigidFrameTransf<nn,ndf,BasisT>::pushResponse(VectorND<nn*ndf>&p)
   // 2b)
   for (int i=0; i<nn; i++)
     pa.assemble(i*ndf, basis.getRotationGradient(i)^m, -1.0);
+#else 
 
+  MatrixND<nn*ndf,nn*ndf> A = getProjection(); // {};
+  pa = A^pa;
+#endif
   
   // 3,4) Rotate and joint offsets
   auto pg = this->FrameTransform<nn,ndf>::pushConstant(pa);
@@ -387,23 +394,29 @@ RigidFrameTransf<nn,ndf,BasisT>::pushResponse(MatrixND<nn*ndf,nn*ndf>&kb, const 
 
   // Kb = kb;
 
-  MatrixND<nn*ndf,nn*ndf> A{};
-  A.addDiagonal(1.0);
-  constexpr Vector3D axis{1, 0, 0};
-  constexpr Matrix3D ix = Hat(axis);
-  MatrixND<3,ndf> Gb{};
-  for (int a = 0; a<nn; a++) {
-    for (int b = 0; b<nn; b++) {
-      
-      Gb.template insert<0,0>(basis.getRotationGradient(b), 1.0);
-      // TODO(nn>2): Interpolate coordinate?
-      A.assemble(ix*Gb, a*ndf  , b*ndf,  double(a)/double(nn-1)*L);
-      A.assemble(   Gb, a*ndf+3, b*ndf, -1.0);
-    }
-  }
 
   MatrixND<nn*ndf,nn*ndf> Kl;
+  MatrixND<nn*ndf,nn*ndf> A = getProjection();
   Kl.addMatrixTripleProduct(0, A, Kb, 1);
+  //
+  // Kl += -W'*Pn'*A
+  //
+  p = A^p;
+  Kb.zero();
+  for (int j=0; j<nn; j++) {
+    MatrixND<3,6> Gj = basis.getRotationGradient(j);
+    for (int i=0; i<nn; i++) {
+      auto PnGj = Hat(&p[i*ndf+0])*Gj;
+      Kb.assemble(PnGj,                i*ndf+0, j*ndf, -1.0);
+
+      // Kl += -Pnm*W
+      Kl.assemble(PnGj,                i*ndf+0, j*ndf, -1.0);
+      Kl.assemble(Hat(&p[i*ndf+3])*Gj, i*ndf+3, j*ndf, -1.0);
+    }
+  }
+  Kl.addMatrixTransposeProduct(1.0, Kb, A,  -1.0);
+
+  // Kl = diag(R) * Kl * diag(R)^T
   return this->FrameTransform<nn,ndf>::pushConstant(Kl);
 }
 

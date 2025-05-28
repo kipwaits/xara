@@ -130,7 +130,8 @@ public:
         R[pres](i,2) = e3[i];
       }
     }
-#if 1
+
+#if 0
     Vector3D uc = nodes[ic]->getTrialDisp();
 #else 
     Vector3D uc{};
@@ -166,6 +167,7 @@ public:
     return w;
   }
 
+
   virtual MatrixND<3,6> 
   getRotationGradient(int node) {
     MatrixND<3,6> Gb{};
@@ -182,16 +184,18 @@ public:
     return Gb;
   }
 
+
   virtual Matrix3D
   getRotation() const override {
     return R[pres];
   }
 
+
   virtual Matrix3D 
   getRotationDelta() {
-    // return Matrix3D{};
     return R[pres] - R[init];
   }
+
 
   virtual Vector3D
   getPosition() {

@@ -73,6 +73,28 @@ public:
     void Print(OPS_Stream &s, int flag = 0);
 
 private:
+    inline MatrixND<nn*ndf,nn*ndf> 
+    getProjection() {
+
+      MatrixND<nn*ndf,nn*ndf> A{};
+      A.addDiagonal(1.0);
+
+      // double L = basis.getLength();
+      constexpr Vector3D axis{1, 0, 0};
+      constexpr Matrix3D ix = Hat(axis);
+      MatrixND<3,ndf> Gb{};
+      for (int a = 0; a<nn; a++) {
+        for (int b = 0; b<nn; b++) {
+          
+          Gb.template insert<0,0>(basis.getRotationGradient(b), 1.0);
+          // TODO(nn>2): Interpolate coordinate?
+          A.assemble(ix*Gb, a*ndf  , b*ndf,  double(a)/double(nn-1)*L);
+          A.assemble(   Gb, a*ndf+3, b*ndf, -1.0);
+        }
+      }
+
+      return A;
+    }
 
     int computeElemtLengthAndOrient();
 

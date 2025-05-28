@@ -1,3 +1,4 @@
+#pragma once
 #include <Node.h>
 #include <Vector.h>
 #include <Matrix.h>

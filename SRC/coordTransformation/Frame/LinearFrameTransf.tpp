@@ -277,7 +277,7 @@ LinearFrameTransf<nn,ndf>::pullConstant(const VectorND<nn*ndf>& ug,
   // (1)
   // Do ui -= ri x wi
   if constexpr (ndf >= 6)
-    if (offset && !(offset_flags&OffsetLocal)) {
+    if (offset && !(offset_flags&OffsetLocal)) [[unlikely]] {
       const std::array<Vector3D, nn>& offsets = *offset;
       for (int i=0; i<nn; i++) {
 
@@ -297,7 +297,7 @@ LinearFrameTransf<nn,ndf>::pullConstant(const VectorND<nn*ndf>& ug,
 
   // 3)
   if constexpr (ndf >= 6)
-    if (offset && (offset_flags&OffsetLocal)) {
+    if (offset && (offset_flags&OffsetLocal)) [[unlikely]] {
       const std::array<Vector3D, nn>& offsets = *offset;
       for (int i=0; i<nn; i++) {
 
@@ -353,10 +353,7 @@ LinearFrameTransf<nn,ndf>::getNodePosition(int node)
     v[0] = Du[0];
     return v;
   }
-
   // TODO(nn>2)
-  v = this->pullPosition<&Node::getTrialDisp>(node) 
-    - this->pullPosition<&Node::getTrialDisp>(0);
   return v;
 }
 

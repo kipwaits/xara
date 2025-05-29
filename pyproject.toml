@@ -1,12 +1,6 @@
 [project]
-name = "xara"
-version = "0.0.5"
-# authors = [
-#   {name=""}
-#   # <50180406+claudioperez@users.noreply.github.com>"
-# ]
-
-# license = {file = "LICENSE.txt"}
+name = "opensees"
+version = "0.1.20"
 
 readme = "about/README.pypi.md"
 
@@ -72,8 +66,8 @@ testing = [
 
 
 [project.urls]
-Repository = "https://github.com/OpenSees/OpenSees"
-Documentation = "https://opensees.berkeley.edu"
+Repository = "https://github.com/peer-open-source/xara"
+Documentation = "https://xara.so"
 Examples = "https://gallery.stairlab.io"
 
 [build-system]

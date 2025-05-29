@@ -14,7 +14,7 @@ Nonlinear finite element analysis.
 </div>
 
 <p style="text-align: center;">
-<b>This package is <i>experimental</i> and not yet intended for public use.</b>
+<b>This package is provided for legacy purposes. New projects should use the <a href="https://pypi.org/project/xara">xara</a> package, which is documented at <a href="https://xara.so">https://xara.so</a>.</b>
 </p>
 
 <!-- Badge links -->

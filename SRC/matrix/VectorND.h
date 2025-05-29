@@ -129,9 +129,9 @@ struct VectorND {
     }
   }
 
-  constexpr T
+  constexpr double
   norm() const noexcept {
-    return sqrt(this->dot(*this));
+    return std::sqrt(std::fabs(this->dot(*this)));
   }
   
   inline double normalize() {

@@ -19,59 +19,60 @@ public:
   update(const Versor& qI, const Versor& qJ, const Vector3D& dx)
   {
 
-      Ln = dx.norm();
+    Ln = dx.norm();
 
-      {
-          Vector3D gammaw = CayleyFromVersor(qJ.mult_conj(qI));
+    {
+        Vector3D gammaw = CayleyFromVersor(qJ.mult_conj(qI));
 
-          gammaw *= 0.5;
+        gammaw *= 0.5;
 
-      //  Qbar = VersorProduct(VersorFromMatrix(CaySO3(gammaw)), qI);
-          Qbar = VersorFromMatrix(CaySO3(gammaw)*MatrixFromVersor(qI));
-          Triad r{CaySO3(gammaw)*MatrixFromVersor(qI)};
-          r1 = r[1];
-          r2 = r[2];
-          r3 = r[3];
-      }
+    //  Qbar = VersorProduct(VersorFromMatrix(CaySO3(gammaw)), qI);
+        Qbar = VersorFromMatrix(CaySO3(gammaw)*MatrixFromVersor(qI));
+        Triad r{CaySO3(gammaw)*MatrixFromVersor(qI)};
+        r1 = r[1];
+        r2 = r[2];
+        r3 = r[3];
+    }
 
-      //
-      // Compute the base vectors e2, e3
-      //
-      {
-          // 'rotate' the mean rotation matrix Rbar on to e1 to
-          // obtain e2 and e3 (using the 'mid-point' procedure)
-          //
-          // Vector3D e1, e2, e3;
-          e[0]  = dx;
-          e[0] /= Ln;
-          Triad r = Triad{MatrixFromVersor(Qbar)};
-          Vector3D r1 = r[1],
-                   r2 = r[2],
-                   r3 = r[3];
+    //
+    // Compute the base vectors e2, e3
+    //
+    {
+        // 'rotate' the mean rotation matrix Rbar on to e1 to
+        // obtain e2 and e3 (using the 'mid-point' procedure)
+        //
+        // Vector3D e1, e2, e3;
+        e[0]  = dx;
+        e[0] /= Ln;
+        Triad r = Triad{MatrixFromVersor(Qbar)};
+        Vector3D r1 = r[1],
+                  r2 = r[2],
+                  r3 = r[3];
 
-          // e2 = r2 - (e1 + r1)*((r2^e1)*0.5);
-      
-          Vector3D tmp;
-          tmp  = e[0];
-          tmp += r1;//Qbar.rotate(E1);
-      
-          e[1] = tmp;
-          {
-            // const Vector3D r2 = Qbar.rotate(E2);
-            e[1] *= 0.5*r2.dot(e[0]);
-            e[1].addVector(-1.0,  r2, 1.0);
-          }
-      
-          // e3 = r3 - (e1 + r1)*((r3^e1)*0.5);
-          e[2] = tmp;
-          {
-            // const Vector3D r3 = Qbar.rotate(E3);
-            e[2] *= r3.dot(e[0])*0.5;
-            e[2].addVector(-1.0,  r3, 1.0);
-          }
-      }
-      return 0;
+        // e2 = r2 - (e1 + r1)*((r2^e1)*0.5);
+    
+        Vector3D tmp;
+        tmp  = e[0];
+        tmp += r1;//Qbar.rotate(E1);
+    
+        e[1] = tmp;
+        {
+          // const Vector3D r2 = Qbar.rotate(E2);
+          e[1] *= 0.5*r2.dot(e[0]);
+          e[1].addVector(-1.0,  r2, 1.0);
+        }
+    
+        // e3 = r3 - (e1 + r1)*((r3^e1)*0.5);
+        e[2] = tmp;
+        {
+          // const Vector3D r3 = Qbar.rotate(E3);
+          e[2] *= r3.dot(e[0])*0.5;
+          e[2].addVector(-1.0,  r3, 1.0);
+        }
+    }
+    return 0;
   }
+
   inline Matrix3D
   getRotation() const noexcept
   {
@@ -87,6 +88,7 @@ public:
   {
     return e[0];
   }
+
   constexpr const Vector3D&
   getBasisE2() const noexcept
   {

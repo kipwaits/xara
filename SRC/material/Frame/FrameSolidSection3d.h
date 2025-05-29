@@ -155,6 +155,7 @@ class FrameSolidSection3d : public FrameSection
     double yBar;                      // Section centroid
     double zBar;                      // Section centroid
 
+    bool wagner;
 
     static ID code;
 

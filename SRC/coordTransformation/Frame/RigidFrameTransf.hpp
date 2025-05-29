@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Description: This file contains the class definition for
@@ -74,13 +76,37 @@ public:
 
 private:
 
+    inline MatrixND<nn*ndf,nn*ndf> 
+    getProjection() {
+
+      MatrixND<nn*ndf,nn*ndf> A{};
+      A.addDiagonal(1.0);
+
+      // double L = basis.getLength();
+      constexpr Vector3D axis{1, 0, 0};
+      constexpr Matrix3D ix = Hat(axis);
+      MatrixND<3,ndf> Gb{};
+      for (int a = 0; a<nn; a++) {
+        for (int b = 0; b<nn; b++) {
+          
+          Gb.template insert<0,0>(basis.getRotationGradient(b), 1.0);
+          // TODO(nn>2): Interpolate coordinate?
+          A.assemble(ix*Gb, a*ndf  , b*ndf,  double(a)/double(nn-1)*L);
+          A.assemble(   Gb, a*ndf+3, b*ndf, -1.0);
+        }
+      }
+
+      return A;
+    }
+
     int computeElemtLengthAndOrient();
 
     inline VectorND<nn*ndf> 
-    pullConstant(const VectorND<nn*ndf>& ug, 
+    pullVariation(const VectorND<nn*ndf>& ug, 
                 const Matrix3D& R, 
                 const std::array<Vector3D, nn> *offset = nullptr,
                 int offset_flags = 0);
+
 
     template<const Vector& (Node::*Getter)()>
     const Vector3D
@@ -93,14 +119,15 @@ private:
           v[i] = u[i];
 
         // 1) Offsets
-        if (offsets) {
-          if (!(offset_flags&OffsetLocal)) {
+        if (offsets) [[unlikely]] {
+          if (!(offset_flags&OffsetLocal))  {
             Vector3D w {u[3], u[4], u[5]};
             v -= offsets->at(node).cross(w);
           }
         }
 
         // 2) Constant Rotation
+        Matrix3D R = basis.getRotation();
         return R^v;
     }
 
@@ -112,7 +139,6 @@ private:
     int offset_flags;
 
     Vector3D xi, xj, vz;
-    Matrix3D R0;        // rotation matrix
     double L;           // undeformed element length
 
     BasisT basis;

@@ -14,6 +14,9 @@
 #include <LinearFrameTransf.hpp>
 #include <SouzaFrameTransf.hpp>
 #include <PDeltaFrameTransf3d.hpp>
+#include <RigidFrameTransf.hpp>
+#include <Orient/CrisfieldTransform.h>
+#include <Orient/FrameBasis.h>
 
 
 class FrameTransformBuilder : public TaggedObject {
@@ -23,7 +26,9 @@ public:
       TaggedObject(t), 
       vz{{0, 0, 0}}, offsets{}, offset_flags(0) {
       strncpy(name, n, 128);
+      // offset_flags |= LogIter;
     }
+
     virtual ~FrameTransformBuilder() {}
   
     template<int nn, int ndf>
@@ -39,18 +44,24 @@ public:
           auto it = offsets.find(i+1);
           if (it != offsets.end())
             (*offset_array)[i] = it->second;
-          
         }
       }
+
       int tag = this->getTag();
       if (strstr(name, "Linear") != nullptr)
         return new LinearFrameTransf<nn, ndf> (tag, vz, offset_array, offset_flags);
-      else if (strstr(name, "Corot") != nullptr)
-        return new SouzaFrameTransf<nn, ndf> (tag, vz, offset_array, offset_flags);
+      
+      else if (strstr(name, "Corot") != nullptr) {
+        if constexpr (ndf == 6)
+          return new SouzaFrameTransf<nn, ndf> (tag, vz, offset_array, offset_flags);
+      }
       else if (strstr(name, "PDelta") != nullptr)
         return new PDeltaFrameTransf<nn, ndf> (tag, vz, offset_array, offset_flags);
-      else
-        return nullptr;
+
+      else if (strstr(name, "Rigid") != nullptr)
+        return new RigidFrameTransf<nn, ndf, RankineBasis<nn>> (tag, vz, offset_array, offset_flags);
+
+      return nullptr;
     }
 
     virtual void 

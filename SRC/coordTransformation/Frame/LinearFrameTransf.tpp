@@ -277,7 +277,7 @@ LinearFrameTransf<nn,ndf>::pullConstant(const VectorND<nn*ndf>& ug,
   // (1)
   // Do ui -= ri x wi
   if constexpr (ndf >= 6)
-    if (offset && !(offset_flags&OffsetLocal)) {
+    if (offset && !(offset_flags&OffsetLocal)) [[unlikely]] {
       const std::array<Vector3D, nn>& offsets = *offset;
       for (int i=0; i<nn; i++) {
 
@@ -297,7 +297,7 @@ LinearFrameTransf<nn,ndf>::pullConstant(const VectorND<nn*ndf>& ug,
 
   // 3)
   if constexpr (ndf >= 6)
-    if (offset && (offset_flags&OffsetLocal)) {
+    if (offset && (offset_flags&OffsetLocal)) [[unlikely]] {
       const std::array<Vector3D, nn>& offsets = *offset;
       for (int i=0; i<nn; i++) {
 
@@ -353,10 +353,7 @@ LinearFrameTransf<nn,ndf>::getNodePosition(int node)
     v[0] = Du[0];
     return v;
   }
-
   // TODO(nn>2)
-  v = this->pullPosition<&Node::getTrialDisp>(node) 
-    - this->pullPosition<&Node::getTrialDisp>(0);
   return v;
 }
 
@@ -440,7 +437,7 @@ LinearFrameTransf<nn,ndf>::pushResponse(MatrixND<nn*ndf,nn*ndf>&kb, const Vector
     }
   }
 
-  MatrixND<12,12> kl;
+  MatrixND<nn*ndf,nn*ndf> kl;
   kl.addMatrixTripleProduct(0, A, kb, 1);
   return this->FrameTransform<nn,ndf>::pushConstant(kl);
 }
@@ -516,7 +513,7 @@ LinearFrameTransf<nn,ndf>::getGlobalResistingForceShapeSensitivity(const Vector 
                                                            int gradNumber)
 {
   
-  static Vector pg(12);
+  static Vector pg(nn*ndf);
   pg.Zero();
 
   //
@@ -526,7 +523,7 @@ LinearFrameTransf<nn,ndf>::getGlobalResistingForceShapeSensitivity(const Vector 
   int di = nodes[0]->getCrdsSensitivity();
   int dj = nodes[1]->getCrdsSensitivity();
 
-  VectorND<12> pl = pushLocal(pb, L);
+  VectorND<nn*ndf> pl = pushLocal(pb, L);
   
   pl[0] += p0[0];
   pl[1] += p0[1];
@@ -545,7 +542,7 @@ LinearFrameTransf<nn,ndf>::getGlobalResistingForceShapeSensitivity(const Vector 
   //
   double dL = this->getLengthGrad();
   double doneOverL = -dL/(L*L);
-  VectorND<12> dpl{0.0};
+  VectorND<nn*ndf> dpl{0.0};
   dpl[1]  =  doneOverL * (pb[1] + pb[2]);  // Viy
   dpl[2]  = -doneOverL * (pb[3] + pb[4]);  // Viz
   dpl[7]  = -dpl[1];                       // Vjy

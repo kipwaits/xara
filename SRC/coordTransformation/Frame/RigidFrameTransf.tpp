@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Description: This file contains the implementation for the
@@ -31,20 +33,17 @@ RigidFrameTransf<nn,ndf,BasisT>::RigidFrameTransf(int tag,
                                            const std::array<Vector3D, nn> *offset,
                                            int offset_flags)
   : FrameTransform<nn,ndf>(tag),
-    Du{0},
     L(0),
+    nodes{},
+    ur{},
     offsets{nullptr},
     offset_flags(offset_flags),
-    basis{nodes}
+    basis{nodes, vecxz}
 {
-  R.zero();
 
+  double nz = vecxz.norm();
   for (int i=0; i<3; i++)
-    vz[i] = vecxz[i];
-
-  R(0,2) = vz(0);
-  R(1,2) = vz(1);
-  R(2,2) = vz(2);
+    vz[i] = vecxz[i]/nz;
 
   // Rigid joint offsets
   if (offset != nullptr) {
@@ -128,24 +127,13 @@ RigidFrameTransf<nn,ndf,BasisT>::computeElemtLengthAndOrient()
       dx(i) += (*offsets)[nn-1][i];
   }
 
-
-  if (u_init[0] != 0) {
-    for (int i=0; i<3; i++)
-      dx(i) -= (*u_init[0])[i];
-  }
-
-  if (u_init[nn-1] != 0) {
-    for (int i=0; i<3; i++)
-      dx(i) += (*u_init[nn-1])[i];
-  }
-
   // calculate the element length
   L = dx.norm();
 
   if (L == 0.0)
     return -2;
 
-  return FrameTransform<nn,ndf>::Orient(dx, vz, R);
+  return basis.initialize();
 }
 
 
@@ -153,6 +141,7 @@ template <int nn, int ndf, typename BasisT>
 int
 RigidFrameTransf<nn,ndf,BasisT>::getLocalAxes(Vector3D &e1, Vector3D &e2, Vector3D &e3) const
 {
+  Matrix3D R = basis.getRotation();
   for (int i = 0; i < 3; i++) {
     e1[i] = R(i,0);
     e2[i] = R(i,1);
@@ -183,22 +172,22 @@ template <int nn, int ndf, typename BasisT>
 int
 RigidFrameTransf<nn,ndf,BasisT>::update()
 {
-  basis.update();
+  if (basis.update() < 0) 
+    return -1;
 
-  Versor   R = basis.getRotation();
-  Vector3D c = basis.getTranslation();
-
-
-  for (int i=0; i<nn; i++)
-    ur[i] = LogSO3(R^nodes[i]->getRotation())
-
+  Matrix3D R = basis.getRotation();
+  for (int i=0; i<nn; i++) {
+    Versor q = nodes[i]->getTrialRotation();
+    ur[i] = LogSO3(R^MatrixFromVersor(q));
+  }
 
   return 0;
 }
 
+
 template <int nn, int ndf, typename BasisT>
 VectorND<nn*ndf> 
-RigidFrameTransf<nn,ndf,BasisT>::pullConstant(const VectorND<nn*ndf>& ug, 
+RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug, 
              const Matrix3D& R, 
              const std::array<Vector3D, nn> *offset,
              int offset_flags) 
@@ -212,7 +201,7 @@ RigidFrameTransf<nn,ndf,BasisT>::pullConstant(const VectorND<nn*ndf>& ug,
   // (1)
   // Do ui -= ri x wi
   if constexpr (ndf >= 6)
-    if (offset && !(offset_flags&OffsetLocal)) {
+    if (offset && !(offset_flags&OffsetLocal)) [[unlikely]] {
       const std::array<Vector3D, nn>& offsets = *offset;
       for (int i=0; i<nn; i++) {
 
@@ -223,16 +212,58 @@ RigidFrameTransf<nn,ndf,BasisT>::pullConstant(const VectorND<nn*ndf>& ug,
       }
     }
 
+// #define T1
+#ifdef T1
+  {
+    const Vector3D w = basis.getRotationVariation();
+    for (int i=0; i<nn; i++)
+      ul.assemble(i*ndf+3, w, -1.0);
+  }
+#endif
+
   // (2) Rotations and translations
+
   for (int i=0; i<nn; i++) {
     const int j = i * ndf;
     ul.insert(j  , R^Vector3D{ul[j+0], ul[j+1], ul[j+2]}, 1.0);
     ul.insert(j+3, R^Vector3D{ul[j+3], ul[j+4], ul[j+5]}, 1.0);
   }
 
-  // 3)
+  double Ln = basis.getLength();
+  {
+    Vector3D wr = basis.getRotationVariation(ndf, &ul[0]);
+    Vector3D dc = basis.getPositionVariation(ndf, &ul[0]);
+    // Vector3D c  = basis.getPosition();
+
+    for (int i=0; i<nn; i++) {
+      int j = i * ndf;
+
+      #if 1
+      Vector3D ui = this->getNodePosition(i);
+      // ui -= c;
+      ul.assemble(i*ndf+0, dc, -1.0);
+      ul.assemble(i*ndf+0, ui.cross(wr), 1.0);
+      #else
+      Vector3D xi = {double(i)/double(nn-1)*Ln, 0, 0}; // R^(nodes[i]->getCrds()); // 
+      // xi += ui;
+      // xi -= c;
+      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+
+      ul.assemble(i*ndf+0, dc, -1.0);
+      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+      ul.assemble(i*ndf+0,  c.cross(wr), -1.0);
+      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+      ul.assemble(i*ndf+0, DR^(nodes[i]->getCrds()), 1.0);
+      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+      ul.assemble(i*ndf+0, xi.cross(wr), 1.0);
+      #endif
+      ul.assemble(i*ndf+3, wr, -1.0);
+    }
+  }
+
+  // 3) Offsets
   if constexpr (ndf >= 6)
-    if (offset && (offset_flags&OffsetLocal)) {
+    if (offset && (offset_flags&OffsetLocal)) [[unlikely]] {
       const std::array<Vector3D, nn>& offsets = *offset;
       for (int i=0; i<nn; i++) {
 
@@ -243,20 +274,13 @@ RigidFrameTransf<nn,ndf,BasisT>::pullConstant(const VectorND<nn*ndf>& ug,
       }
     }
 
-  // (4)
-  // TODO (nn>2)
-  constexpr static Vector3D iv {1,0,0};
-  Vector3D uI = ul.template extract<3>(0);
-  Vector3D Du = ul.template extract<3>((nn-1)*ndf) - uI;
-  Vector3D ixDu = iv.cross(Du);
-  for (int i=0; i<nn; i++) {
-    // Translation
-    ul.assemble(i*ndf, uI, -1.0);
-    for (int j=1; j<3; j++)
-      ul[i*ndf+j] -= double(i)/(nn-1.0)*Du[j];
-
-    // Rotation
-    ul.assemble(i*ndf+3, ixDu, -1.0/L);
+  // (5) Logarithm of rotations
+  if (0) { // !(offset_flags & LogIter)) {
+    for (int i=0; i<nn; i++) {
+      const int j = i * ndf+3;
+      Vector3D v {ul[j+0], ul[j+1], ul[j+2]};
+      ul.insert(i*ndf+3, dLogSO3(ur[i])*v, 1.0);
+    }
   }
 
   return ul;
@@ -274,16 +298,20 @@ RigidFrameTransf<nn,ndf,BasisT>::getStateVariation()
       ug[i*ndf+j] = ddu(j);
     }
   }
-  return RigidFrameTransf<nn,ndf,BasisT>::pullConstant(ug, R, offsets, offset_flags);
+
+  Matrix3D R = basis.getRotation();
+  return RigidFrameTransf<nn,ndf,BasisT>::pullVariation(ug, R, offsets, offset_flags);
 }
 
 template <int nn, int ndf, typename BasisT>
 Vector3D
 RigidFrameTransf<nn,ndf,BasisT>::getNodePosition(int node)
 {
-
   Vector3D v = this->pullPosition<&Node::getTrialDisp>(node) 
-             - this->pullPosition<&Node::getTrialDisp>(0);
+             - basis.getPosition();
+
+  v += basis.getRotationDelta()^(nodes[node]->getCrds());
+
   return v;
 }
 
@@ -304,61 +332,90 @@ VectorND<nn*ndf>
 RigidFrameTransf<nn,ndf,BasisT>::pushResponse(VectorND<nn*ndf>&p)
 {
   VectorND<nn*ndf> pa = p;
-  constexpr Vector3D iv{1, 0, 0};
-  constexpr Matrix3D ix = Hat(iv);
 
-  // 1) Sum of moments: m = sum_i mi + sum_i (xi x ni)
-  Vector3D m{};
-  for (int i=0; i<nn; i++) {
-    // m += mi
-    for (int j=0; j<3; j++)
-      m[j] += p[i*ndf+3+j];
-
-    const Vector3D n = Vector3D{p[i*ndf+0], p[i*ndf+1], p[i*ndf+2]};
-    m.addVector(1, iv.cross(n), double(i)/double(nn-1)*L);
-  }
-  const Vector3D ixm = ix*m;
-
-  // 2) Adjust force part
-  for (int i=0; i<nn; i++) {
-    pa.assemble(i*ndf,  ixm,  (i? 1.0:-1.0)/L);
-    pa[i*ndf+3] += m[0]*(i? -1:1)*0.5;
-  }
-
-  // 3) Rotate and do joint offsets
-  auto pg = this->FrameTransform<nn,ndf>::pushConstant(pa);
-  return pg;
-}
-
-template <int nn, int ndf, typename BasisT>
-MatrixND<nn*ndf,nn*ndf>
-RigidFrameTransf<nn,ndf,BasisT>::pushResponse(MatrixND<nn*ndf,nn*ndf>&kb, const VectorND<nn*ndf>&)
-{
-
-  MatrixND<nn*ndf,nn*ndf> A{};
-  A.addDiagonal(1.0);
-  constexpr Vector3D axis{1, 0, 0};
-  constexpr Matrix3D ix = Hat(axis);
-  constexpr Matrix3D ioi = axis.bun(axis);
-
-  MatrixND<3,ndf> Gb{};
-  Gb.template insert<0, 3>(ioi, 0.5);
-  for (int a = 0; a<nn; a++) {
-    for (int b = 0; b<nn; b++) {
-      // TODO(nn>2): Interpolate coordinate?
-      if (b == 0)
-        Gb.template insert<0,0>(ix, -1/L);
-      else if (b == nn-1)
-        Gb.template insert<0,0>(ix,  1/L);
-      // TODO(nn>2): Interpolate coordinate?
-      A.assemble(ix*Gb, a*ndf  , b*ndf,  double(a)/double(nn-1)*L);
-      A.assemble(   Gb, a*ndf+3, b*ndf, -1.0);
+  // 1) Logarithm
+  if (0) { // !(offset_flags & LogIter)) {
+    for (int i=0; i<nn; i++) {
+      const int j = i * ndf+3;
+      Vector3D m {p[j+0], p[j+1], p[j+2]};
+      pa.insert(j, dLogSO3(ur[i])^m, 1.0);
     }
   }
 
-  MatrixND<12,12> kl;
-  kl.addMatrixTripleProduct(0, A, kb, 1);
-  return this->FrameTransform<nn,ndf>::pushConstant(kl);
+  MatrixND<nn*ndf,nn*ndf> A = getProjection();
+  pa = A^pa;
+
+  // 3,4) Rotate and joint offsets
+  auto pg = this->FrameTransform<nn,ndf>::pushConstant(pa);
+
+  return pg;
+}
+
+
+template <int nn, int ndf, typename BasisT>
+MatrixND<nn*ndf,nn*ndf>
+RigidFrameTransf<nn,ndf,BasisT>::pushResponse(MatrixND<nn*ndf,nn*ndf>&kb, const VectorND<nn*ndf>&pb)
+{
+  MatrixND<nn*ndf,nn*ndf> Kb = kb;
+  VectorND<nn*ndf> p = pb;
+
+  if (0) {//!(offset_flags & LogIter)) {
+    for (int i=0; i<nn; i++) {
+      Vector3D m{pb[i*ndf+3], pb[i*ndf+4], pb[i*ndf+5]};
+      const Matrix3D Ai = dLogSO3(ur[i]);
+      p.insert(i*ndf+3, Ai^m, 1.0);
+
+      Matrix3D kg = ddLogSO3(ur[i], m);
+      for (int j=0; j<nn; j++) {
+        const Matrix3D Aj = dLogSO3(ur[j]);
+        // loop over 3x3 blocks for n and m
+        for (int k=0; k<2; k++) {
+          for (int l=0; l<2; l++) {
+            Matrix3D Kab {{
+              {Kb(i*ndf+3*k+0, j*ndf+3*l  ), Kb(i*ndf+3*k+1, j*ndf+3*l  ), Kb(i*ndf+3*k+2, j*ndf+3*l  )},
+              {Kb(i*ndf+3*k+0, j*ndf+3*l+1), Kb(i*ndf+3*k+1, j*ndf+3*l+1), Kb(i*ndf+3*k+2, j*ndf+3*l+1)},
+              {Kb(i*ndf+3*k+0, j*ndf+3*l+2), Kb(i*ndf+3*k+1, j*ndf+3*l+2), Kb(i*ndf+3*k+2, j*ndf+3*l+2)}
+            }};
+            if (k == 1)
+              Kab = Kab*Aj;
+            if (l == 1)
+              Kab = Ai^Kab;
+
+            Kb.insert(Kab, i*ndf+3*k, j*ndf+3*l, 1.0);
+            if (i == j && k == 1 && l == 1)
+              Kb.assemble(kg, i*ndf+3*k, j*ndf+3*l, 1.0);
+          }
+        }
+      }
+    }
+  }
+
+  // Kb = kb;
+
+  MatrixND<nn*ndf,nn*ndf> Kl;
+  MatrixND<nn*ndf,nn*ndf> A = getProjection();
+  Kl.addMatrixTripleProduct(0, A, Kb, 1);
+
+  //
+  // Kl += -W'*Pn'*A
+  //
+  p = A^p;
+  Kb.zero();
+  for (int j=0; j<nn; j++) {
+    MatrixND<3,6> Gj = basis.getRotationGradient(j);
+    for (int i=0; i<nn; i++) {
+      auto PnGj = Hat(&p[i*ndf+0])*Gj;
+      Kb.assemble(PnGj,                i*ndf+0, j*ndf, -1.0);
+
+      // Kl += -Pnm*W
+      Kl.assemble(PnGj,                i*ndf+0, j*ndf, -1.0);
+      Kl.assemble(Hat(&p[i*ndf+3])*Gj, i*ndf+3, j*ndf, -1.0);
+    }
+  }
+  Kl.addMatrixTransposeProduct(1.0, Kb, A,  -1.0);
+
+  // Kl = diag(R) * Kl * diag(R)^T
+  return this->FrameTransform<nn,ndf>::pushConstant(Kl);
 }
 
 
@@ -366,22 +423,7 @@ template <int nn, int ndf, typename BasisT>
 FrameTransform<nn,ndf> *
 RigidFrameTransf<nn,ndf,BasisT>::getCopy() const
 {
-
-  Vector3D xz;
-  xz(0) = R(0,2);
-  xz(1) = R(1,2);
-  xz(2) = R(2,2);
-
-
-  RigidFrameTransf *theCopy = new RigidFrameTransf<nn,ndf>(this->getTag(), xz, offsets);
-
-  theCopy->nodes = nodes;
-  theCopy->L     = L;
-  for (int i = 0; i < 3; i++)
-    for (int j = 0; j < 3; j++)
-      theCopy->R(j,i) = R(j,i);
-
-  return theCopy;
+  return new RigidFrameTransf<nn,ndf,BasisT>(this->getTag(), vz, offsets);
 }
 
 
@@ -435,9 +477,9 @@ RigidFrameTransf<nn,ndf,BasisT>::Print(OPS_Stream &s, int flag)
     s << "\"name\": " << this->getTag() << ", ";
     s << "\"type\": \"RigidFrameTransf\"";
     s << ", \"vecxz\": [" 
-      << R(0,2) << ", " 
-      << R(1,2) << ", "
-      << R(2,2) << "]";
+      << vz[0] << ", " 
+      << vz[1] << ", "
+      << vz[2] << "]";
     if (offsets != nullptr) {
       s << ", \"offsets\": [";
       for (int i=0; i<nn; i++) {
@@ -454,11 +496,6 @@ RigidFrameTransf<nn,ndf,BasisT>::Print(OPS_Stream &s, int flag)
     s << "}";
 
     return;
-  }
-
-  if (flag == OPS_PRINT_CURRENTSTATE) {
-    s << "\nFrameTransform: " << this->getTag() << " Type: RigidFrameTransf\n";
-    s << "\tOrientation: " << Matrix(&R(0,0), 3,3) << "\n";
   }
 }
 

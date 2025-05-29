@@ -55,6 +55,8 @@ FrameSolidSection3d::FrameSolidSection3d(int tag, int num):
   code(ivx) = FrameStress::Bishear;
   code(ivy) = FrameStress::Qy;
   code(ivz) = FrameStress::Qz;
+
+  wagner = getenv("Wagner") != nullptr;
 }
 
 // constructor for blank object that recvSelf needs to be invoked upon
@@ -76,6 +78,7 @@ FrameSolidSection3d::FrameSolidSection3d():
   code(ivx) = FrameStress::Bishear;
   code(ivy) = FrameStress::Qy;
   code(ivz) = FrameStress::Qz;
+  wagner = getenv("Wagner") != nullptr;
 }
 
 int
@@ -223,8 +226,6 @@ FrameSolidSection3d::stateDetermination(Tangent& K, VectorND<nsr>* s_trial, cons
     const Vector3D r = fiber.r;
     double tr2 = 0;
 
-    bool wagner = getenv("Wagner") != nullptr;
-
     if (e_trial != nullptr) {
       // Form material strain
       Vector3D eps = gamma + kappa.cross(r);
@@ -297,7 +298,7 @@ FrameSolidSection3d::stateDetermination(Tangent& K, VectorND<nsr>* s_trial, cons
        K.mm.addMatrixProduct(ioiC, ioi, tr2*tr2);
 
        // Geometric part,  equivalent to Kmm.addMatrix(ioi, r2*stress(0));
-       if (kappa[0] != 0)
+       if (kappa[0] != 0) [[likely]]
           K.mm(0,0) += tr2/kappa[0]*stress(0)*fiber.area;
 
        K.mw.addMatrixProduct(ioiC, iow,  tr2);

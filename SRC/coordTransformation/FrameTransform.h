@@ -31,9 +31,14 @@ enum {
 };
 
 enum {
-  OffsetGlobal = 0,
-  OffsetLocal  = 1,
-  OffsetNormalized = 2
+  OffsetGlobal     = 0, // 1<<0,
+  OffsetLocal      = 1, // 1<<1,
+  OffsetNormalized = 2, // 1<<2,
+
+  LogIter          = 1<<3,
+  LogIncr          = 1<<4,
+  LogInit          = 1<<5,
+  LogDefault       = 1<<6
 };
 
 //

@@ -233,17 +233,21 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
   {
     Vector3D wr = basis.getRotationVariation(ndf, &ul[0]);
     Vector3D dc = basis.getPositionVariation(ndf, &ul[0]);
-    Vector3D c  = basis.getPosition();
-    Matrix3D DR = basis.getRotationDelta();
+    // Vector3D c  = basis.getPosition();
 
     for (int i=0; i<nn; i++) {
-      Vector3D xi = {double(i)/double(nn-1)*Ln, 0, 0}; // R^(nodes[i]->getCrds()); // 
       int j = i * ndf;
-      // Vector3D ui {ul[j+0], ul[j+1], ul[j+2]};
+
+      #if 1
+      Vector3D ui = this->getNodePosition(i);
+      // ui -= c;
+      ul.assemble(i*ndf+0, dc, -1.0);
+      ul.assemble(i*ndf+0, ui.cross(wr), 1.0);
+      #else
+      Vector3D xi = {double(i)/double(nn-1)*Ln, 0, 0}; // R^(nodes[i]->getCrds()); // 
       // xi += ui;
       // xi -= c;
       opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
-
 
       ul.assemble(i*ndf+0, dc, -1.0);
       opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
@@ -252,7 +256,7 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
       ul.assemble(i*ndf+0, DR^(nodes[i]->getCrds()), 1.0);
       opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
       ul.assemble(i*ndf+0, xi.cross(wr), 1.0);
-      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+      #endif
       ul.assemble(i*ndf+3, wr, -1.0);
     }
   }
@@ -270,35 +274,14 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
       }
     }
 
-
-#if 0
-  // (4) Isometry
-  // TODO (nn>2)
-  constexpr static Vector3D iv {1,0,0};
-  Vector3D uI = ul.template extract<3>(0);
-  Vector3D Du = ul.template extract<3>((nn-1)*ndf) - uI;
-  Vector3D ixDu = iv.cross(Du);
-  for (int i=0; i<nn; i++) {
-    // Translation
-    ul.assemble(i*ndf, uI, -1.0);
-    for (int j=1; j<3; j++)
-      ul[i*ndf+j] -= L*double(i)/(nn-1.0)*Du[j]/Ln;
-
-    // Rotation
-#ifndef T1
-    ul.assemble(i*ndf+3, ixDu, -1.0/Ln);
-#endif
-  }
-#endif
-
   // (5) Logarithm of rotations
-#if 1
-  for (int i=0; i<nn; i++) {
-    const int j = i * ndf+3;
-    Vector3D v {ul[j+0], ul[j+1], ul[j+2]};
-    ul.insert(i*ndf+3, dLogSO3(ur[i])*v, 1.0);
+  if (0) { // !(offset_flags & LogIter)) {
+    for (int i=0; i<nn; i++) {
+      const int j = i * ndf+3;
+      Vector3D v {ul[j+0], ul[j+1], ul[j+2]};
+      ul.insert(i*ndf+3, dLogSO3(ur[i])*v, 1.0);
+    }
   }
-#endif
 
   return ul;
 }
@@ -327,9 +310,7 @@ RigidFrameTransf<nn,ndf,BasisT>::getNodePosition(int node)
   Vector3D v = this->pullPosition<&Node::getTrialDisp>(node) 
              - basis.getPosition();
 
-  opserr << "v[" << node << "] = " << Vector(v);
   v += basis.getRotationDelta()^(nodes[node]->getCrds());
-  opserr << "v[" << node << "] = " << Vector(v);
 
   return v;
 }
@@ -353,38 +334,17 @@ RigidFrameTransf<nn,ndf,BasisT>::pushResponse(VectorND<nn*ndf>&p)
   VectorND<nn*ndf> pa = p;
 
   // 1) Logarithm
-#if 1
-  for (int i=0; i<nn; i++) {
-    const int j = i * ndf+3;
-    Vector3D m {p[j+0], p[j+1], p[j+2]};
-    pa.insert(j, dLogSO3(ur[i])^m, 1.0);
-  }
-#endif
-
-
-#if 0
-  constexpr static Vector3D iv{1, 0, 0};
-  // double L = basis.getLength();
-  // 2a) Sum of moments: m = sum_i mi + sum_i (xi x ni)
-  Vector3D m{};
-  for (int i=0; i<nn; i++) {
-    // m += mi
-    for (int j=0; j<3; j++)
-      m[j] += p[i*ndf+3+j];
-
-    const Vector3D n = Vector3D{p[i*ndf+0], p[i*ndf+1], p[i*ndf+2]};
-    m.addVector(1, iv.cross(n), double(i)/double(nn-1)*L);
+  if (0) { // !(offset_flags & LogIter)) {
+    for (int i=0; i<nn; i++) {
+      const int j = i * ndf+3;
+      Vector3D m {p[j+0], p[j+1], p[j+2]};
+      pa.insert(j, dLogSO3(ur[i])^m, 1.0);
+    }
   }
 
-  // 2b)
-  for (int i=0; i<nn; i++)
-    pa.assemble(i*ndf, basis.getRotationGradient(i)^m, -1.0);
-#else 
-
-  MatrixND<nn*ndf,nn*ndf> A = getProjection(); // {};
+  MatrixND<nn*ndf,nn*ndf> A = getProjection();
   pa = A^pa;
-#endif
-  
+
   // 3,4) Rotate and joint offsets
   auto pg = this->FrameTransform<nn,ndf>::pushConstant(pa);
 
@@ -398,31 +358,33 @@ RigidFrameTransf<nn,ndf,BasisT>::pushResponse(MatrixND<nn*ndf,nn*ndf>&kb, const 
 {
   MatrixND<nn*ndf,nn*ndf> Kb = kb;
   VectorND<nn*ndf> p = pb;
-  
-  for (int i=0; i<nn; i++) {
-    Vector3D m{pb[i*ndf+3], pb[i*ndf+4], pb[i*ndf+5]};
-    const Matrix3D Ai = dLogSO3(ur[i]);
-    p.insert(i*ndf+3, Ai^m, 1.0);
 
-    Matrix3D kg = ddLogSO3(ur[i], m);
-    for (int j=0; j<nn; j++) {
-      const Matrix3D Aj = dLogSO3(ur[j]);
-      // loop over 3x3 blocks for n and m
-      for (int k=0; k<2; k++) {
-        for (int l=0; l<2; l++) {
-          Matrix3D Kab {{
-            {Kb(i*ndf+3*k+0, j*ndf+3*l  ), Kb(i*ndf+3*k+1, j*ndf+3*l  ), Kb(i*ndf+3*k+2, j*ndf+3*l  )},
-            {Kb(i*ndf+3*k+0, j*ndf+3*l+1), Kb(i*ndf+3*k+1, j*ndf+3*l+1), Kb(i*ndf+3*k+2, j*ndf+3*l+1)},
-            {Kb(i*ndf+3*k+0, j*ndf+3*l+2), Kb(i*ndf+3*k+1, j*ndf+3*l+2), Kb(i*ndf+3*k+2, j*ndf+3*l+2)}
-          }};
-          if (k == 1)
-            Kab = Kab*Aj;
-          if (l == 1)
-            Kab = Ai^Kab;
+  if (0) {//!(offset_flags & LogIter)) {
+    for (int i=0; i<nn; i++) {
+      Vector3D m{pb[i*ndf+3], pb[i*ndf+4], pb[i*ndf+5]};
+      const Matrix3D Ai = dLogSO3(ur[i]);
+      p.insert(i*ndf+3, Ai^m, 1.0);
 
-          Kb.insert(Kab, i*ndf+3*k, j*ndf+3*l, 1.0);
-          if (i == j && k == 1 && l == 1)
-            Kb.assemble(kg, i*ndf+3*k, j*ndf+3*l, 1.0);
+      Matrix3D kg = ddLogSO3(ur[i], m);
+      for (int j=0; j<nn; j++) {
+        const Matrix3D Aj = dLogSO3(ur[j]);
+        // loop over 3x3 blocks for n and m
+        for (int k=0; k<2; k++) {
+          for (int l=0; l<2; l++) {
+            Matrix3D Kab {{
+              {Kb(i*ndf+3*k+0, j*ndf+3*l  ), Kb(i*ndf+3*k+1, j*ndf+3*l  ), Kb(i*ndf+3*k+2, j*ndf+3*l  )},
+              {Kb(i*ndf+3*k+0, j*ndf+3*l+1), Kb(i*ndf+3*k+1, j*ndf+3*l+1), Kb(i*ndf+3*k+2, j*ndf+3*l+1)},
+              {Kb(i*ndf+3*k+0, j*ndf+3*l+2), Kb(i*ndf+3*k+1, j*ndf+3*l+2), Kb(i*ndf+3*k+2, j*ndf+3*l+2)}
+            }};
+            if (k == 1)
+              Kab = Kab*Aj;
+            if (l == 1)
+              Kab = Ai^Kab;
+
+            Kb.insert(Kab, i*ndf+3*k, j*ndf+3*l, 1.0);
+            if (i == j && k == 1 && l == 1)
+              Kb.assemble(kg, i*ndf+3*k, j*ndf+3*l, 1.0);
+          }
         }
       }
     }

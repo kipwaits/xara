@@ -86,6 +86,7 @@ public:
     Xc = nodes[ic]->getCrds();
     c[init] = R[init]^(Xc);
 #endif
+
     update();
     return 0;
   }
@@ -99,13 +100,11 @@ public:
       // Update state
       //
       {
-        // Relative translation
-#if 1
         const Vector& uI = nodes[   0]->getTrialDisp();
         const Vector& uJ = nodes[nn-1]->getTrialDisp();
         for (int k = 0; k < 3; k++)
           e1[k] += uJ(k) - uI(k);
-#endif
+
         // Calculate the deformed length
         Ln = e1.norm();
 
@@ -152,11 +151,6 @@ public:
     return Ln;
   }
 
-
-  virtual Vector3D 
-  getPositionVariation(int ndf, double* du) {
-    return Vector3D {du[ndf*ic+0], du[ndf*ic+1], du[ndf*ic+2]};
-  }
 
   virtual Vector3D
   getRotationVariation(int ndf, double* du) {
@@ -212,6 +206,11 @@ public:
     Vector3D X = nodes[ic]->getCrds();
     Vector3D Dc =  c[pres] - (R[init]^X) ; // (R[pres]^c[init]);
     return Dc;
+  }
+
+  virtual Vector3D 
+  getPositionVariation(int ndf, double* du) {
+    return Vector3D {du[ndf*ic+0], du[ndf*ic+1], du[ndf*ic+2]};
   }
 
 private:

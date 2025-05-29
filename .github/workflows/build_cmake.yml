@@ -89,7 +89,7 @@ jobs:
 #        ln -s /usr/local/bin/gfortran-11 /usr/local/bin/gfortran
 
       - name: Install Libraries
-        run: brew install tcl-tk libomp
+        run: brew install tcl-tk libomp gfortran
 
       - name: Build
         run: |
@@ -102,13 +102,11 @@ jobs:
             -DNoOpenSeesPyRT:BOOL=TRUE
           cmake --build . --target OpenSeesRT -j3
 
-#     - name: Verification
-#       run: |
-#         cd ./EXAMPLES/Verification/
 
 
 # Not building on Windows until we can figure out how to use Fortran
 # with Github Actions
+#
 # build-win32:
 #   name: Build on Windows
 #   runs-on: [windows-latest]

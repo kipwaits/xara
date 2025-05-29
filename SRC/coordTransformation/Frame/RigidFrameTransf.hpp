@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Description: This file contains the class definition for
@@ -73,6 +75,7 @@ public:
     void Print(OPS_Stream &s, int flag = 0);
 
 private:
+
     inline MatrixND<nn*ndf,nn*ndf> 
     getProjection() {
 
@@ -103,6 +106,7 @@ private:
                 const Matrix3D& R, 
                 const std::array<Vector3D, nn> *offset = nullptr,
                 int offset_flags = 0);
+
 
     template<const Vector& (Node::*Getter)()>
     const Vector3D

@@ -8,7 +8,9 @@
 
 <hr>
 
+<!--
 <h3 align="center">xara</h3>
+-->
 
 
 <p align="center">

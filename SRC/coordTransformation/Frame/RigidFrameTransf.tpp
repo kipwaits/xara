@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Description: This file contains the implementation for the
@@ -31,7 +33,6 @@ RigidFrameTransf<nn,ndf,BasisT>::RigidFrameTransf(int tag,
                                            const std::array<Vector3D, nn> *offset,
                                            int offset_flags)
   : FrameTransform<nn,ndf>(tag),
-    // Du{0},
     L(0),
     nodes{},
     ur{},
@@ -219,11 +220,41 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
       ul.assemble(i*ndf+3, w, -1.0);
   }
 #endif
+
   // (2) Rotations and translations
+
   for (int i=0; i<nn; i++) {
     const int j = i * ndf;
     ul.insert(j  , R^Vector3D{ul[j+0], ul[j+1], ul[j+2]}, 1.0);
     ul.insert(j+3, R^Vector3D{ul[j+3], ul[j+4], ul[j+5]}, 1.0);
+  }
+
+  double Ln = basis.getLength();
+  {
+    Vector3D wr = basis.getRotationVariation(ndf, &ul[0]);
+    Vector3D dc = basis.getPositionVariation(ndf, &ul[0]);
+    Vector3D c  = basis.getPosition();
+    Matrix3D DR = basis.getRotationDelta();
+
+    for (int i=0; i<nn; i++) {
+      Vector3D xi = {double(i)/double(nn-1)*Ln, 0, 0}; // R^(nodes[i]->getCrds()); // 
+      int j = i * ndf;
+      // Vector3D ui {ul[j+0], ul[j+1], ul[j+2]};
+      // xi += ui;
+      // xi -= c;
+      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+
+
+      ul.assemble(i*ndf+0, dc, -1.0);
+      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+      ul.assemble(i*ndf+0,  c.cross(wr), -1.0);
+      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+      ul.assemble(i*ndf+0, DR^(nodes[i]->getCrds()), 1.0);
+      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+      ul.assemble(i*ndf+0, xi.cross(wr), 1.0);
+      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
+      ul.assemble(i*ndf+3, wr, -1.0);
+    }
   }
 
   // 3) Offsets
@@ -239,9 +270,10 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
       }
     }
 
+
+#if 0
   // (4) Isometry
   // TODO (nn>2)
-  double L = basis.getLength();
   constexpr static Vector3D iv {1,0,0};
   Vector3D uI = ul.template extract<3>(0);
   Vector3D Du = ul.template extract<3>((nn-1)*ndf) - uI;
@@ -250,13 +282,14 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
     // Translation
     ul.assemble(i*ndf, uI, -1.0);
     for (int j=1; j<3; j++)
-      ul[i*ndf+j] -= double(i)/(nn-1.0)*Du[j];
+      ul[i*ndf+j] -= L*double(i)/(nn-1.0)*Du[j]/Ln;
 
     // Rotation
 #ifndef T1
-    ul.assemble(i*ndf+3, ixDu, -1.0/L);
+    ul.assemble(i*ndf+3, ixDu, -1.0/Ln);
 #endif
   }
+#endif
 
   // (5) Logarithm of rotations
 #if 1
@@ -294,7 +327,10 @@ RigidFrameTransf<nn,ndf,BasisT>::getNodePosition(int node)
   Vector3D v = this->pullPosition<&Node::getTrialDisp>(node) 
              - basis.getPosition();
 
+  opserr << "v[" << node << "] = " << Vector(v);
   v += basis.getRotationDelta()^(nodes[node]->getCrds());
+  opserr << "v[" << node << "] = " << Vector(v);
+
   return v;
 }
 
@@ -394,10 +430,10 @@ RigidFrameTransf<nn,ndf,BasisT>::pushResponse(MatrixND<nn*ndf,nn*ndf>&kb, const 
 
   // Kb = kb;
 
-
   MatrixND<nn*ndf,nn*ndf> Kl;
   MatrixND<nn*ndf,nn*ndf> A = getProjection();
   Kl.addMatrixTripleProduct(0, A, Kb, 1);
+
   //
   // Kl += -W'*Pn'*A
   //

@@ -1,3 +1,10 @@
+//===----------------------------------------------------------------------===//
+//
+//                                   xara
+//
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
+//===----------------------------------------------------------------------===//
 #pragma once
 #include <Node.h>
 #include <Vector.h>
@@ -9,19 +16,20 @@
 #include <Matrix3D.h>
 
 namespace OpenSees {
+
 class FrameBasis
 {
 public:
   virtual int           initialize() =0;
   virtual int           update() =0;
 
-  virtual double getLength() const =0;
+  virtual double        getLength() const =0;
   // x, \Lambda
   virtual Matrix3D      getRotation() const =0;
   virtual Vector3D      getPosition() =0;
   // \psi
-  virtual Vector3D      getPositionVariation() =0; 
-  virtual Vector3D      getRotationVariation() =0;
+  virtual Vector3D      getPositionVariation(int ndf, double* du) =0; 
+  virtual Vector3D      getRotationVariation(int ndf, double* du) =0;
   virtual Matrix3D      getRotationDelta() =0;
   //
   virtual MatrixND<3,6> getRotationGradient(int node) =0;
@@ -34,7 +42,7 @@ class RankineBasis : public FrameBasis
 {
 public:
   RankineBasis(std::array<Node*,nn>& nodes, const Vector3D& vecxz)
-  : nodes{nodes}, vz(vecxz), c{}, R{} {
+  : nodes{nodes}, vz(vecxz), Xc{}, c{}, R{} {
   };
 
   virtual int 
@@ -73,8 +81,10 @@ public:
       R[init](i,1) = e2[i];
       R[init](i,2) = e3[i];
     }
+
 #if 1
-    c[init] = R[init]^(nodes[ic]->getCrds());
+    Xc = nodes[ic]->getCrds();
+    c[init] = R[init]^(Xc);
 #endif
     update();
     return 0;
@@ -131,12 +141,9 @@ public:
       }
     }
 
-#if 0
     Vector3D uc = nodes[ic]->getTrialDisp();
-#else 
-    Vector3D uc{};
-#endif
-    c[pres] = R[pres]^(R[init]*c[init] + uc);
+    Vector3D X = nodes[ic]->getCrds(); // R[init]*c[init];
+    c[pres] = R[pres]^(X + uc);
     return 0;
   };
 
@@ -145,24 +152,22 @@ public:
     return Ln;
   }
 
-  // virtual Vector3D
-  // getMoment() {
-  // }
 
   virtual Vector3D 
-  getPositionVariation() {
-    // psi_x = c[pres] - ();
-    Vector3D psi_x{};
-    return psi_x;
+  getPositionVariation(int ndf, double* du) {
+    return Vector3D {du[ndf*ic+0], du[ndf*ic+1], du[ndf*ic+2]};
   }
 
   virtual Vector3D
-  getRotationVariation() {
+  getRotationVariation(int ndf, double* du) {
     // psi_r = omega
     Vector3D w{};
     for (int i=0; i<nn; i++) {
-      const Vector &du = nodes[i]->getIncrDeltaDisp();
-      w += this->getRotationGradient(i) * du;
+      // const Vector &du = nodes[i]->getIncrDeltaDisp();
+      auto Wi = this->getRotationGradient(i);
+      for (int j=0; j<3; j++)
+        for (int k=0; k<6; k++)
+          w[j] += Wi(j,k) * du[ndf*i + k];
     }
     return w;
   }
@@ -177,9 +182,9 @@ public:
     constexpr Matrix3D ioi = axis.bun(axis);
     Gb.template insert<0, 3>(ioi, 0.5);
     if (node == 0)
-      Gb.template insert<0,0>(ix, -1/L);
+      Gb.template insert<0,0>(ix, -1/Ln);
     else if (node == nn-1)
-      Gb.template insert<0,0>(ix,  1/L);
+      Gb.template insert<0,0>(ix,  1/Ln);
   
     return Gb;
   }
@@ -196,11 +201,16 @@ public:
     return R[pres] - R[init];
   }
 
+  Vector3D
+  getLocation() {
+    return c[pres];
+  }
 
   virtual Vector3D
   getPosition() {
     // Return Delta c
-    Vector3D Dc =  c[pres] - (R[pres]^c[init]);
+    Vector3D X = nodes[ic]->getCrds();
+    Vector3D Dc =  c[pres] - (R[init]^X) ; // (R[pres]^c[init]);
     return Dc;
   }
 
@@ -208,7 +218,7 @@ private:
   constexpr static int ic = 0; // std::floor(0.5*(nn+1));
   enum { pres, prev, init};
   double L, Ln;
-  Vector3D vz, dX;
+  Vector3D vz, dX, Xc;
   Matrix3D R[3];
   Vector3D c[3];
   Matrix3D dR;

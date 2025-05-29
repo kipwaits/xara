@@ -1,8 +1,8 @@
 
 
 <p align="center">
-  <a href="https://gallery.stairlab.io/">
-    <img src="https://raw.githubusercontent.com/claudioperez/sdof/master/docs/assets/peer-black-300.png" alt="PEER logo" width="150" >
+  <a href="https://xara.so/">
+    <img src="https://raw.githubusercontent.com/STAIRLab/xara-docs/master/source/_static/images/xara-chi.png" alt="xara logo" width="150" >
   </a>
 </p>
 

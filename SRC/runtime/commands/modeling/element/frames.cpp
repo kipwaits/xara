@@ -916,7 +916,7 @@ TclBasicBuilder_addForceBeamColumn(ClientData clientData, Tcl_Interp *interp,
     Element *theElement = ndm == 2 
                         ? CreateFrame<2, CrdTransf, FrameSection>(*builder, argv[1], tag, multi_nodes, transfTag, 
                                                               section_tags, *beamIntegr, mass, max_iter, tol, options)
-                        : CreateFrame<3, FrameTransform3d, FrameSection>(*builder, argv[1], tag, multi_nodes, transfTag, 
+                        : CreateFrame<3, CrdTransf, FrameSection>(*builder, argv[1], tag, multi_nodes, transfTag, 
                                                                         section_tags, *beamIntegr, mass, max_iter, tol, options);
 
                                                                         
@@ -1298,7 +1298,7 @@ TclBasicBuilder_addBeamWithHinges(ClientData clientData, Tcl_Interp *interp,
       return TCL_ERROR;
 
 
-    FrameTransform3d *theTransf = builder->getTypedObject<FrameTransform3d>(transfTag);
+    CrdTransf *theTransf = builder->getTypedObject<CrdTransf>(transfTag);
     if (theTransf == nullptr)
       return TCL_ERROR;
 

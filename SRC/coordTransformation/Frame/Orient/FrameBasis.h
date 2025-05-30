@@ -5,6 +5,7 @@
 //===----------------------------------------------------------------------===//
 //                              https://xara.so
 //===----------------------------------------------------------------------===//
+//
 #pragma once
 #include <Node.h>
 #include <Vector.h>
@@ -20,17 +21,17 @@ namespace OpenSees {
 class FrameBasis
 {
 public:
-  virtual int           initialize() =0;
-  virtual int           update() =0;
+  virtual int       initialize() =0;
+  virtual int       update() =0;
 
-  virtual double        getLength() const =0;
+  virtual double    getLength() const =0;
   // x, \Lambda
-  virtual Matrix3D      getRotation() const =0;
-  virtual Vector3D      getPosition() =0;
+  virtual Matrix3D  getRotation() const =0;
+  virtual Vector3D  getPosition() =0;
   // \psi
-  virtual Vector3D      getPositionVariation(int ndf, double* du) =0; 
-  virtual Vector3D      getRotationVariation(int ndf, double* du) =0;
-  virtual Matrix3D      getRotationDelta() =0;
+  virtual Vector3D  getPositionVariation(int ndf, double* du) =0; 
+  virtual Vector3D  getRotationVariation(int ndf, double* du) =0;
+  virtual Matrix3D  getRotationDelta() =0;
   //
   virtual MatrixND<3,6> getRotationGradient(int node) =0;
 

@@ -97,7 +97,7 @@ RigidFrameTransf<nn,ndf,BasisT>::initialize(std::array<Node*, nn>& new_nodes)
   }
 
   int error;
-  // get element length and orientation
+  // set element length and orientation
   if ((error = this->computeElemtLengthAndOrient()))
     return error;
 
@@ -212,15 +212,6 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
       }
     }
 
-// #define T1
-#ifdef T1
-  {
-    const Vector3D w = basis.getRotationVariation();
-    for (int i=0; i<nn; i++)
-      ul.assemble(i*ndf+3, w, -1.0);
-  }
-#endif
-
   // (2) Rotations and translations
 
   for (int i=0; i<nn; i++) {
@@ -236,7 +227,6 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
     // Vector3D c  = basis.getPosition();
 
     for (int i=0; i<nn; i++) {
-      int j = i * ndf;
 
       #if 1
       Vector3D ui = this->getNodePosition(i);
@@ -244,6 +234,7 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
       ul.assemble(i*ndf+0, dc, -1.0);
       ul.assemble(i*ndf+0, ui.cross(wr), 1.0);
       #else
+      int j = i * ndf;
       Vector3D xi = {double(i)/double(nn-1)*Ln, 0, 0}; // R^(nodes[i]->getCrds()); // 
       // xi += ui;
       // xi -= c;

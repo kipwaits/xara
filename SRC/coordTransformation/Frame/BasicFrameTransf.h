@@ -1,12 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 // 
 // The purpose of this class is to wrap the more general FrameTransform<>
 // templates to reproduce the legacy CrdTransf classes that were derived
-// for elements in the "basic" coordinate system.
+// for elements in a "basic" coordinate system.
 //
 // cmp
 //

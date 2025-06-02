@@ -84,7 +84,7 @@ class EulerFrame3d : public BasicFrame3d,
 
 
 protected:
-    // For BasicFrame3d
+    // Personal
     virtual  OpenSees::VectorND<6>&   getBasicForce() final;
     virtual  OpenSees::MatrixND<6,6>& getBasicTangent(State state, int rate) final;
     // For FiniteElement

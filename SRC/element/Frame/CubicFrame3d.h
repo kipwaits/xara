@@ -27,7 +27,8 @@ class CubicFrame3d : public Element {
 public:
   CubicFrame3d(int tag, 
                std::array<int, 2>&,
-               std::vector<FrameSection*>&, BeamIntegration&,
+               std::vector<FrameSection*>&, 
+               BeamIntegration&,
                CrdTransf&, 
                double rho);
   CubicFrame3d();
@@ -47,7 +48,7 @@ public:
   int getNumDOF();
   void setDomain(Domain* theDomain);
 
-  // public methods to set the state of the element
+  // Element: State
   int commitState();
   int revertToLastCommit();
   int revertToStart();
@@ -96,7 +97,7 @@ private:
         nsr = 6,              // number of section resultants
         ndm = 3,              // dimension of the problem (3D)
         nq  = 6,              // number of element dof's in the basic system
-        NDF = 3,              //
+        NDF = 6,              //
         NEN = 2,              // number of element nodes
         maxNumSections = 20;
 

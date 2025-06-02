@@ -221,17 +221,26 @@ CreateFrame(BasicModelBuilder& builder,
         }
 
 
-        if (strcmp(name, "CubicFrame") == 0) {
+        if (strcmp(name, "EulerFrame") == 0) {
+            theElement = new EulerFrame3d(tag, nodes, nIP, sections.data(),
+                                          beamIntegr, *tb, 
+                                          mass, options.mass_flag);
+        }
 
-          theElement = new EulerFrame3d(tag, nodes, nIP, sections.data(),
-                                        beamIntegr, *tb, 
-                                        mass, options.mass_flag);
+        if (strcmp(name, "CubicFrame") == 0) {
+          theElement = new CubicFrame3d(tag, nodes, 
+                                        sections,
+                                        beamIntegr, 
+                                        *theTransf, // TODO: Use FrameTransformBuilder
+                                        mass);
         } 
 
         else if (strcmp(name, "DisplFrame") == 0) {
           theElement =  new EulerDeltaFrame3d(tag, nodes, sections,
                                               beamIntegr, *theTransf, 
-                                              mass, options.mass_flag, use_mass);
+                                              mass, 
+                                              options.mass_flag, 
+                                              use_mass);
         }
 
         else if ((strstr(name, "Force") != 0) ||
@@ -242,7 +251,9 @@ CreateFrame(BasicModelBuilder& builder,
                 if (nip.value == sections.size())
                   theElement = new ForceDeltaFrame3d<nip.value, 4>(tag, nodes, sections,
                                                 beamIntegr, *tb, 
-                                                mass, options.mass_flag, use_mass,
+                                                mass, 
+                                                options.mass_flag, 
+                                                use_mass,
                                                 max_iter, tol,
                                                 options.shear_flag
                                                 );
@@ -252,7 +263,9 @@ CreateFrame(BasicModelBuilder& builder,
                 if (nip.value == sections.size())
                   theElement = new ForceDeltaFrame3d<nip.value, 6>(tag, nodes, sections,
                                                 beamIntegr, *tb, 
-                                                mass, options.mass_flag, use_mass,
+                                                mass, 
+                                                options.mass_flag, 
+                                                use_mass,
                                                 max_iter, tol,
                                                 options.shear_flag
                                                 );

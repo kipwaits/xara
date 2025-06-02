@@ -166,13 +166,13 @@ CubicFrame3d::setDomain(Domain* theDomain)
   }
 
   if (theCoordTransf->initialize(theNodes[0], theNodes[NEN-1])) {
-    // Add some error check
+    return;
   }
 
   double L = theCoordTransf->getInitialLength();
 
   if (L == 0.0) {
-    // Add some error check
+    return;
   }
 
   for (int i = 0; i < numSections; i++) {
@@ -183,9 +183,9 @@ CubicFrame3d::setDomain(Domain* theDomain)
     double EI = 0.0;
     double GA = 0.0;
     for (int k = 0; k < nsr; k++) {
-      if (code(k) == SECTION_RESPONSE_MZ)
+      if (code(k) == FrameStress::Mz)
         EI += ks0(k, k);
-      if (code(k) == SECTION_RESPONSE_VY)
+      if (code(k) == FrameStress::Vy)
         GA += ks0(k, k);
     }
     phizs[i] = 0.0;
@@ -197,7 +197,7 @@ CubicFrame3d::setDomain(Domain* theDomain)
     for (int k = 0; k < nsr; k++) {
       if (code(k) == SECTION_RESPONSE_MY)
         EI += ks0(k, k);
-      if (code(k) == SECTION_RESPONSE_VZ)
+      if (code(k) == FrameStress::Vz)
         GA += ks0(k, k);
     }
     phiys[i] = 0.0;
@@ -277,9 +277,6 @@ CubicFrame3d::update()
   // Loop over the integration points
   for (int i = 0; i < numSections; i++) {
 
-    int order      = theSections[i]->getOrder();
-    const ID& code = theSections[i]->getType();
-
 
     double xi6  = 6.0 * xi[i];
     double phiz = phizs[i];
@@ -288,14 +285,14 @@ CubicFrame3d::update()
     VectorND<nsr> e;
     for (int j = 0; j < nsr; j++) {
       switch (scheme[j]) {
-      case SECTION_RESPONSE_P: 
+      case FrameStress::N: 
         e(j) = jsx * v(0);
         break;
-      case SECTION_RESPONSE_VY:
-        e(j) = 0.5 * phiz / (1 + phiz) * v(1) + 0.5 * phiz / (1 + phiz) * v(2);
+      case FrameStress::Vy:
+        e(j) = 0.5 * phiz/(1 + phiz)*v(1) + 0.5 * phiz/(1 + phiz) * v(2);
         break;
-      case SECTION_RESPONSE_VZ:
-        e(j) = 0.5 * phiy / (1 + phiy) * v(3) + 0.5 * phiy / (1 + phiy) * v(4);
+      case FrameStress::Vz:
+        e(j) = 0.5 * phiy/(1 + phiy)*v(3) + 0.5 * phiy/(1 + phiy) * v(4);
         break;
       case SECTION_RESPONSE_T: 
         e(j) = jsx * v(5); 
@@ -303,7 +300,7 @@ CubicFrame3d::update()
       case SECTION_RESPONSE_MY:
         e(j) = jsx / (1 + phiy) * ((xi6 - 4.0 - phiy) * v(3) + (xi6 - 2.0 + phiy) * v(4));
         break;
-      case SECTION_RESPONSE_MZ:
+      case FrameStress::Mz:
         e(j) = jsx / (1 + phiz) * ((xi6 - 4.0 - phiz) * v(1) + (xi6 - 2.0 + phiz) * v(2));
         break;
       default:
@@ -352,11 +349,11 @@ CubicFrame3d::getTangentStiff()
     for (int j = 0; j < nsr; j++) {
       double tmp;
       switch (scheme[j]) {
-      case SECTION_RESPONSE_P:
+      case FrameStress::N:
         for (int k = 0; k < nsr; k++)
           ka(k, 0) += ks(k, j) * wti;
         break;
-      case SECTION_RESPONSE_MZ:
+      case FrameStress::Mz:
         for (int k = 0; k < nsr; k++) {
           tmp = ks(k, j) * wti;
           ka(k, 1) += 1.0 / (1 + phiz) * (xi6 - 4.0 - phiz) * tmp;
@@ -370,14 +367,14 @@ CubicFrame3d::getTangentStiff()
           ka(k, 4) += 1.0 / (1 + phiy) * (xi6 - 2.0 + phiy) * tmp;
         }
         break;
-      case SECTION_RESPONSE_VY:
+      case FrameStress::Vy:
         for (int k = 0; k < nsr; k++) {
           tmp = ks(k, j) * wti;
           ka(k, 1) += 0.5 * phiz * L / (1 + phiz) * tmp;
           ka(k, 2) += 0.5 * phiz * L / (1 + phiz) * tmp;
         }
         break;
-      case SECTION_RESPONSE_VZ:
+      case FrameStress::Vz:
         for (int k = 0; k < nsr; k++) {
           tmp = ks(k, j) * wti;
           ka(k, 3) += 0.5 * phiy * L / (1 + phiy) * tmp;
@@ -394,11 +391,11 @@ CubicFrame3d::getTangentStiff()
     for (int j = 0; j < nsr; j++) {
       double tmp;
       switch (scheme[j]) {
-      case SECTION_RESPONSE_P:
+      case FrameStress::N:
         for (int k = 0; k < 6; k++)
           kb(0, k) += ka(j, k);
         break;
-      case SECTION_RESPONSE_MZ:
+      case FrameStress::Mz:
         for (int k = 0; k < 6; k++) {
           tmp = ka(j, k);
           kb(1, k) += 1.0 / (1 + phiz) * (xi6 - 4.0 - phiz) * tmp;
@@ -412,14 +409,14 @@ CubicFrame3d::getTangentStiff()
           kb(4, k) += 1.0 / (1 + phiy) * (xi6 - 2.0 + phiy) * tmp;
         }
         break;
-      case SECTION_RESPONSE_VY:
+      case FrameStress::Vy:
         for (int k = 0; k < 6; k++) {
           tmp = ka(j, k);
           kb(1, k) += 0.5 * phiz * L / (1 + phiz) * tmp;
           kb(2, k) += 0.5 * phiz * L / (1 + phiz) * tmp;
         }
         break;
-      case SECTION_RESPONSE_VZ:
+      case FrameStress::Vz:
         for (int k = 0; k < 6; k++) {
           tmp = ka(j, k);
           kb(3, k) += 0.5 * phiy * L / (1 + phiy) * tmp;
@@ -438,9 +435,9 @@ CubicFrame3d::getTangentStiff()
     for (int j = 0; j < nsr; j++) {
       double si = s[j] * wt[i];
       switch (scheme[j]) {
-      case SECTION_RESPONSE_P: 
+      case FrameStress::N: 
         q(0) += si; break;
-      case SECTION_RESPONSE_MZ:
+      case FrameStress::Mz:
         q(1) += 1.0 / (1 + phiz) * (xi6 - 4.0 - phiz) * si;
         q(2) += 1.0 / (1 + phiz) * (xi6 - 2.0 + phiz) * si;
         break;
@@ -448,11 +445,11 @@ CubicFrame3d::getTangentStiff()
         q(3) += 1.0 / (1 + phiy) * (xi6 - 4.0 - phiy) * si;
         q(4) += 1.0 / (1 + phiy) * (xi6 - 2.0 + phiy) * si;
         break;
-      case SECTION_RESPONSE_VY:
+      case FrameStress::Vy:
         q(1) += 0.5 * phiz * L / (1 + phiz) * si;
         q(2) += 0.5 * phiz * L / (1 + phiz) * si;
         break;
-      case SECTION_RESPONSE_VZ:
+      case FrameStress::Vz:
         q(3) += 0.5 * phiy * L / (1 + phiy) * si;
         q(4) += 0.5 * phiy * L / (1 + phiy) * si;
         break;
@@ -506,11 +503,11 @@ CubicFrame3d::getBasicStiff(Matrix& kb, int initial)
     for (int j = 0; j < nsr; j++) {
       double tmp;
       switch (scheme[j]) {
-      case SECTION_RESPONSE_P:
+      case FrameStress::N:
         for (int k = 0; k < nsr; k++)
           ka(k, 0) += ks(k, j) * wti;
         break;
-      case SECTION_RESPONSE_MZ:
+      case FrameStress::Mz:
         for (int k = 0; k < nsr; k++) {
           tmp = ks(k, j) * wti;
           ka(k, 1) += 1.0 / (1 + phiz) * (xi6 - 4.0 - phiz) * tmp;
@@ -524,14 +521,14 @@ CubicFrame3d::getBasicStiff(Matrix& kb, int initial)
           ka(k, 4) += 1.0 / (1 + phiy) * (xi6 - 2.0 + phiy) * tmp;
         }
         break;
-      case SECTION_RESPONSE_VY:
+      case FrameStress::Vy:
         for (int k = 0; k < nsr; k++) {
           tmp = ks(k, j) * wti;
           ka(k, 1) += 0.5 * phiz * L / (1 + phiz) * tmp;
           ka(k, 2) += 0.5 * phiz * L / (1 + phiz) * tmp;
         }
         break;
-      case SECTION_RESPONSE_VZ:
+      case FrameStress::Vz:
         for (int k = 0; k < nsr; k++) {
           tmp = ks(k, j) * wti;
           ka(k, 3) += 0.5 * phiy * L / (1 + phiy) * tmp;
@@ -548,11 +545,11 @@ CubicFrame3d::getBasicStiff(Matrix& kb, int initial)
 
     for (int j = 0; j < nsr; j++) {
       switch (scheme[j]) {
-      case SECTION_RESPONSE_P:
+      case FrameStress::N:
         for (int k = 0; k < 6; k++)
           kb(0, k) += ka(j, k);
         break;
-      case SECTION_RESPONSE_MZ:
+      case FrameStress::Mz:
         for (int k = 0; k < 6; k++) {
           double tmp = ka(j, k);
           kb(1, k) += 1.0 / (1 + phiz) * (xi6 - 4.0 - phiz) * tmp;
@@ -566,14 +563,14 @@ CubicFrame3d::getBasicStiff(Matrix& kb, int initial)
           kb(4, k) += 1.0 / (1 + phiy) * (xi6 - 2.0 + phiy) * tmp;
         }
         break;
-      case SECTION_RESPONSE_VY:
+      case FrameStress::Vy:
         for (int k = 0; k < 6; k++) {
           double tmp = ka(j, k);
           kb(1, k) += 0.5 * phiz * L / (1 + phiz) * tmp;
           kb(2, k) += 0.5 * phiz * L / (1 + phiz) * tmp;
         }
         break;
-      case SECTION_RESPONSE_VZ:
+      case FrameStress::Vz:
         for (int k = 0; k < 6; k++) {
           double tmp = ka(j, k);
           kb(3, k) += 0.5 * phiy * L / (1 + phiy) * tmp;
@@ -992,8 +989,8 @@ CubicFrame3d::getResistingForce()
     for (int j = 0; j < nsr; j++) {
       double si = s[j] * wt[i];
       switch (scheme[j]) {
-      case SECTION_RESPONSE_P: q(0) += si; break;
-      case SECTION_RESPONSE_MZ:
+      case FrameStress::N: q(0) += si; break;
+      case FrameStress::Mz:
         q(1) += 1.0 / (1 + phiz) * (xi6 - 4.0 - phiz) * si;
         q(2) += 1.0 / (1 + phiz) * (xi6 - 2.0 + phiz) * si;
         break;
@@ -1001,11 +998,11 @@ CubicFrame3d::getResistingForce()
         q(3) += 1.0 / (1 + phiy) * (xi6 - 4.0 - phiy) * si;
         q(4) += 1.0 / (1 + phiy) * (xi6 - 2.0 + phiy) * si;
         break;
-      case SECTION_RESPONSE_VY:
+      case FrameStress::Vy:
         q(1) += 0.5 * phiz * L / (1 + phiz) * si;
         q(2) += 0.5 * phiz * L / (1 + phiz) * si;
         break;
-      case SECTION_RESPONSE_VZ:
+      case FrameStress::Vz:
         q(3) += 0.5 * phiy * L / (1 + phiy) * si;
         q(4) += 0.5 * phiy * L / (1 + phiy) * si;
         break;
@@ -1615,18 +1612,18 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
     for (int j = 0; j < nsr; j++) {
       sensi = dsdh(j) * wti;
       switch (scheme[j]) {
-      case SECTION_RESPONSE_P:
+      case FrameStress::N:
         dqdh(0) += sensi;
         break;
-      case SECTION_RESPONSE_VY:
+      case FrameStress::Vy:
         dqdh(1) += 0.5 * phiz * L / (1 + phiz) * sensi;
         dqdh(2) += 0.5 * phiz * L / (1 + phiz) * sensi;
         break;
-      case SECTION_RESPONSE_VZ:
+      case FrameStress::Vz:
         dqdh(3) += 0.5 * phiy * L / (1 + phiy) * sensi;
         dqdh(4) += 0.5 * phiy * L / (1 + phiy) * sensi;
         break;
-      case SECTION_RESPONSE_MZ:
+      case FrameStress::Mz:
         dqdh(1) += 1.0 / (1 + phiz) * (xi6 - 4.0 - phiz) * sensi;
         dqdh(2) += 1.0 / (1 + phiz) * (xi6 - 2.0 + phiz) * sensi;
         break;
@@ -1675,12 +1672,12 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
       for (int j = 0; j < nsr; j++) {
         double si = s(j) * wti;
         switch (scheme[j]) {
-        case SECTION_RESPONSE_P:
+        case FrameStress::N:
           q(0) += si;
           for (int k = 0; k < nsr; k++)
             ka(k, 0) += ks(k, j) * wti;
           break;
-        case SECTION_RESPONSE_MZ:
+        case FrameStress::Mz:
           q(1) += 1.0 / (1 + phiz) * (xi6 - 4.0 - phiz) * si;
           q(2) += 1.0 / (1 + phiz) * (xi6 - 2.0 + phiz) * si;
           for (int k = 0; k < nsr; k++) {
@@ -1698,7 +1695,7 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
             ka(k, 4) += 1.0 / (1 + phiy) * (xi6 - 2.0 + phiy) * tmp;
           }
           break;
-        case SECTION_RESPONSE_VY:
+        case FrameStress::Vy:
           q(1) += 0.5 * phiz * L / (1 + phiz) * si;
           q(2) += 0.5 * phiz * L / (1 + phiz) * si;
           for (int k = 0; k < nsr; k++) {
@@ -1707,7 +1704,7 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
             ka(k, 2) += 0.5 * phiz * L / (1 + phiz) * tmp;
           }
           break;
-        case SECTION_RESPONSE_VZ:
+        case FrameStress::Vz:
           q(3) += 0.5 * phiy * L / (1 + phiy) * si;
           q(4) += 0.5 * phiy * L / (1 + phiy) * si;
           for (int k = 0; k < nsr; k++) {
@@ -1727,12 +1724,12 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
       }
       for (int j = 0; j < nsr; j++) {
         switch (scheme[j]) {
-        case SECTION_RESPONSE_P:
+        case FrameStress::N:
           for (int k = 0; k < 6; k++) {
             kbmine(0, k) += ka(j, k);
           }
           break;
-        case SECTION_RESPONSE_MZ:
+        case FrameStress::Mz:
           for (int k = 0; k < 6; k++) {
             double tmp = ka(j, k);
             kbmine(1, k) += 1.0 / (1 + phiz) * (xi6 - 4.0 - phiz) * tmp;
@@ -1746,14 +1743,14 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
             kbmine(4, k) += 1.0 / (1 + phiy) * (xi6 - 2.0 + phiy) * tmp;
           }
           break;
-        case SECTION_RESPONSE_VY:
+        case FrameStress::Vy:
           for (int k = 0; k < 6; k++) {
             tmp = ka(j, k);
             kbmine(1, k) += 0.5 * phiz * L / (1 + phiz) * tmp;
             kbmine(2, k) += 0.5 * phiz * L / (1 + phiz) * tmp;
           }
           break;
-        case SECTION_RESPONSE_VZ:
+        case FrameStress::Vz:
           for (int k = 0; k < 6; k++) {
             tmp = ka(j, k);
             kbmine(3, k) += 0.5 * phiy * L / (1 + phiy) * tmp;
@@ -1824,8 +1821,8 @@ CubicFrame3d::commitSensitivity(int gradNumber, int numGrads)
 
     for (int j = 0; j < nsr; j++) {
       switch (scheme[j]) {
-      case SECTION_RESPONSE_P: e(j) = oneOverL * dvdh(0) + d1oLdh * v(0); break;
-      case SECTION_RESPONSE_MZ:
+      case FrameStress::N: e(j) = oneOverL * dvdh(0) + d1oLdh * v(0); break;
+      case FrameStress::Mz:
         //e(j) = oneOverL*((xi6-4.0)*dvdh(1) + (xi6-2.0)*dvdh(2))
         //  + d1oLdh*((xi6-4.0)*v(1) + (xi6-2.0)*v(2));
         e(j) =
@@ -1839,10 +1836,10 @@ CubicFrame3d::commitSensitivity(int gradNumber, int numGrads)
             oneOverL / (1 + phiy) * ((xi6 - 4.0 - phiy) * dvdh(3) + (xi6 - 2.0 + phiy) * dvdh(4)) +
             d1oLdh / (1 + phiy) * ((xi6 - 4.0 - phiy) * v(3) + (xi6 - 2.0 + phiy) * v(4));
         break;
-      case SECTION_RESPONSE_VY:
+      case FrameStress::Vy:
         e(j) = 0.5 * phiz / (1 + phiz) * dvdh(1) + 0.5 * phiz / (1 + phiz) * dvdh(2);
         break;
-      case SECTION_RESPONSE_VZ:
+      case FrameStress::Vz:
         e(j) = 0.5 * phiy / (1 + phiy) * dvdh(3) + 0.5 * phiy / (1 + phiy) * dvdh(4);
         break;
       case SECTION_RESPONSE_T: e(j) = oneOverL * dvdh(5) + d1oLdh * v(5); break;

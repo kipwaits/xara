@@ -28,7 +28,6 @@
 #include <Parameter.h>
 #include <math.h>
 
-
 using namespace OpenSees;
 
 #define ELE_TAG_CubicFrame3d 0
@@ -1124,7 +1123,7 @@ CubicFrame3d<shear,nwm>::getResponse(int responseID, Information& eleInfo)
   }
 
   else if (responseID == 19) {
-    static Matrix kb(6, 6);
+    static Matrix kb(nq, nq);
     this->getBasicStiff(kb);
     return eleInfo.setMatrix(kb);
   }

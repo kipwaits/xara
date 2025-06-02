@@ -79,6 +79,7 @@ def eval(script: str):
     {script}
     """))
 
+
 def dumps(obj, skip_int_refs=False)->str:
 
 #   TODO: Move this function, maybe to emit
@@ -100,6 +101,7 @@ def dumps(obj, skip_int_refs=False)->str:
         except Exception as e:
             raise e
             # raise ValueError("Cannot dump model with binary objects")
+
 
 def _lift(interpaddr: int, type, tag: int):
     type = type.lower()
@@ -145,10 +147,11 @@ class Interpreter:
         # self._tcl.createcommand("import", self._pyimport)
 
         try:
-            import sees.tcl
-            sees.tcl.add_commands(self)
+            import veux.tcl
+            veux.tcl.add_commands(self)
         except:
             pass
+
 
         self._err_file = None #pathlib.Path(tempfile.gettempdir())/f"{uuid.uuid4()}"
         try:
@@ -199,8 +202,15 @@ class Interpreter:
                 file = tmp/pathlib.Path("model.json")
                 self.eval(f"print -json -file {file}")
 
-            with open(file, "r") as f:
-                model = json.load(f)
+            try:
+                with open(file, "r") as f:
+                    model = json.load(f)
+
+            except json.decoder.JSONDecodeError as e:
+                if (echo:= os.environ.get("XARA_ECHO_JSON", False)):
+                    with open(file, "r") as f, open(echo, "w+") as other:
+                        other.write(f.read())
+                raise e
 
         if os.name == 'nt':
             os.remove(file)
@@ -240,6 +250,7 @@ class Interpreter:
         except:
             self.eval("opensees::import " + " ".join(args))
             return
+
 
     def _pyexpr(self, *args):
         try:

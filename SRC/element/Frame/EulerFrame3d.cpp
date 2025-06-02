@@ -49,7 +49,8 @@ EulerFrame3d::EulerFrame3d(int tag, std::array<int,2>& nodes,
    basic_system(new BasicFrameTransf3d<6>(tb.template create<2,6>())),
    numSections(numSec),
    stencil(nullptr),
-   density(r), mass_flag(cm), 
+   density(r), 
+   mass_flag(cm), 
    use_density(true),
    mass_initialized(false)
 {
@@ -111,7 +112,6 @@ EulerFrame3d::revertToLastCommit()
       return -1;
   }
 
-  // Revert the transformation to last commit
   if (basic_system->revertToLastCommit() != 0)
     return -2;
 
@@ -121,13 +121,12 @@ EulerFrame3d::revertToLastCommit()
 int
 EulerFrame3d::revertToStart()
 {
-  // Loop over the integration points and revert states to start
+
   for (GaussPoint& point : points) {
     if (point.material->revertToStart() != 0)
       return -1;
   }
 
-  // Revert the transformation to start
   if (basic_system->revertToStart() != 0)
     return -2;
 
@@ -256,7 +255,7 @@ EulerFrame3d::update()
   for (int i = 0; i < points.size(); i++) {
       double xi6 = 6.0*xi[i];
 
-      const VectorND<4> e {
+      const VectorND<nsr> e {
            jsx*v[0],                                 // N
            jsx*(xi6-4.0)*v[1] + jsx*(xi6-2.0)*v[2],  // Mz
            jsx*(xi6-4.0)*v[3] + jsx*(xi6-2.0)*v[4],  // My
@@ -423,14 +422,13 @@ EulerFrame3d::getInitialStiff()
 }
 
 int
-EulerFrame3d::sendSelf(int commitTag, Channel &theChannel)
+EulerFrame3d::sendSelf(int tag, Channel &c)
 {
   return -1;
 }
 
 int
-EulerFrame3d::recvSelf(int commitTag, Channel &theChannel,
-                                                FEM_ObjectBroker &theBroker)
+EulerFrame3d::recvSelf(int tag, Channel &c, FEM_ObjectBroker &b)
 {
   return -1;
 }

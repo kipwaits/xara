@@ -6,7 +6,7 @@
 //
 // This element is adapted from TimoshenkoBeamColumn3d
 //
-// Written: MHS
+// Written: CMP, MHS
 // Created: Feb 2001
 //
 #include <CubicFrame3d.h>
@@ -28,13 +28,13 @@
 #include <Parameter.h>
 #include <math.h>
 
-Matrix CubicFrame3d::K(12, 12);
-Vector CubicFrame3d::P(12);
+
 using namespace OpenSees;
 
 #define ELE_TAG_CubicFrame3d 0
 
-CubicFrame3d::CubicFrame3d(int tag, 
+template <bool shear, int nwm>
+CubicFrame3d<shear,nwm>::CubicFrame3d(int tag, 
                            std::array<int, 2>& nodes, 
                            std::vector<FrameSection*>& sections,
                            BeamIntegration& bi,
@@ -46,16 +46,20 @@ CubicFrame3d::CubicFrame3d(int tag,
    theCoordTransf(nullptr),
    beamInt(nullptr),
    Q(12),
-   q(6),
+   q{},
+   P{},
+   P_wrap(P),
+   K{},
+   K_wrap(K),
    density(r),
-   parameterID(0),
-   connectedExternalNodes(2)
+   connectedExternalNodes(2),
+   loads(nullptr),
+   parameterID(0)
 {
   // Allocate arrays of pointers to SectionForceDeformations
   theSections = new FrameSection*[numSections];
 
   for (int i = 0; i < numSections; i++) {
-    // Get copies of the material for each integration point
     theSections[i] = sections[i]->getFrameCopy(scheme);
   }
 
@@ -64,19 +68,17 @@ CubicFrame3d::CubicFrame3d(int tag,
 
   theCoordTransf = coordTransf.getCopy3d();
 
-  // Set connected external node IDs
   connectedExternalNodes(0) = nodes[0];
   connectedExternalNodes(1) = nodes[1];
 
 
   theNodes[0] = nullptr;
   theNodes[1] = nullptr;
-
-  q0.zero();
-  p0.zero();
 }
 
-CubicFrame3d::CubicFrame3d()
+
+template <bool shear, int nwm>
+CubicFrame3d<shear,nwm>::CubicFrame3d()
  : Element(0, ELE_TAG_CubicFrame3d),
    numSections(0),
    theSections(nullptr),
@@ -84,18 +86,20 @@ CubicFrame3d::CubicFrame3d()
    beamInt(nullptr),
    connectedExternalNodes(2),
    Q(12),
-   q(6),
+   P{},
+   P_wrap(P),
+   K{},
+   K_wrap(K),
    density(0.0),
+   loads(nullptr),
    parameterID(0)
 {
-  q0.zero();
-  p0.zero();
-
   theNodes[0] = nullptr;
   theNodes[1] = nullptr;
 }
 
-CubicFrame3d::~CubicFrame3d()
+template <bool shear, int nwm>
+CubicFrame3d<shear,nwm>::~CubicFrame3d()
 {
   for (int i = 0; i < numSections; i++) {
     if (theSections[i])
@@ -113,32 +117,37 @@ CubicFrame3d::~CubicFrame3d()
     delete beamInt;
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::getNumExternalNodes() const
+CubicFrame3d<shear,nwm>::getNumExternalNodes() const
 {
-  return 2;
+  return NEN;
 }
 
+template <bool shear, int nwm>
 const ID&
-CubicFrame3d::getExternalNodes()
+CubicFrame3d<shear,nwm>::getExternalNodes()
 {
   return connectedExternalNodes;
 }
 
+template <bool shear, int nwm>
 Node**
-CubicFrame3d::getNodePtrs()
+CubicFrame3d<shear,nwm>::getNodePtrs()
 {
   return theNodes;
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::getNumDOF()
+CubicFrame3d<shear,nwm>::getNumDOF()
 {
-  return 12;
+  return NDF*NEN;
 }
 
+template <bool shear, int nwm>
 void
-CubicFrame3d::setDomain(Domain* theDomain)
+CubicFrame3d<shear,nwm>::setDomain(Domain* theDomain)
 {
   // Check Domain is not null. This happens when element is removed from a domain.
   // In this case just set null pointers to null and return.
@@ -183,7 +192,7 @@ CubicFrame3d::setDomain(Domain* theDomain)
     double EI = 0.0;
     double GA = 0.0;
     for (int k = 0; k < nsr; k++) {
-      if (code(k) == FrameStress::Mz)
+      if (scheme[k] == FrameStress::Mz)
         EI += ks0(k, k);
       if (code(k) == FrameStress::Vy)
         GA += ks0(k, k);
@@ -213,8 +222,9 @@ CubicFrame3d::setDomain(Domain* theDomain)
   this->update();
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::commitState()
+CubicFrame3d<shear,nwm>::commitState()
 {
   int status = 0;
 
@@ -232,8 +242,9 @@ CubicFrame3d::commitState()
   return status;
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::revertToLastCommit()
+CubicFrame3d<shear,nwm>::revertToLastCommit()
 {
   int status = 0;
 
@@ -246,8 +257,9 @@ CubicFrame3d::revertToLastCommit()
   return status;
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::revertToStart()
+CubicFrame3d<shear,nwm>::revertToStart()
 {
   int status = 0;
 
@@ -260,8 +272,9 @@ CubicFrame3d::revertToStart()
   return status;
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::update()
+CubicFrame3d<shear,nwm>::update()
 {
   int err = 0;
 
@@ -270,7 +283,6 @@ CubicFrame3d::update()
 
   // Get basic deformations
   const Vector& v = theCoordTransf->getBasicTrialDisp();
-
   double L        = theCoordTransf->getInitialLength();
   double jsx = 1.0 / L;
 
@@ -294,7 +306,7 @@ CubicFrame3d::update()
       case FrameStress::Vz:
         e(j) = 0.5 * phiy/(1 + phiy)*v(3) + 0.5 * phiy/(1 + phiy) * v(4);
         break;
-      case SECTION_RESPONSE_T: 
+      case FrameStress::T: 
         e(j) = jsx * v(5); 
         break;
       case SECTION_RESPONSE_MY:
@@ -317,10 +329,11 @@ CubicFrame3d::update()
 }
 
 
+template <bool shear, int nwm>
 const Matrix&
-CubicFrame3d::getTangentStiff()
+CubicFrame3d<shear,nwm>::getTangentStiff()
 {
-  static MatrixND<6,6> kb;
+  static MatrixND<nq,nq> kb;
   static Matrix wrapper(kb);
 
 
@@ -329,11 +342,11 @@ CubicFrame3d::getTangentStiff()
 
 
   kb.zero();
-  q.Zero();
+  q.zero();
   // Loop over the integration points
   for (int i = 0; i < numSections; i++) {
 
-    MatrixND<nsr,6> ka;
+    MatrixND<nsr,nq> ka;
     ka.zero();
 
     double xi6  = 6.0 * xi[i];
@@ -341,10 +354,10 @@ CubicFrame3d::getTangentStiff()
     double phiy = phiys[i];
 
     // Get the section tangent stiffness and stress resultant
-     MatrixND<nsr,nsr> ks = theSections[i]->getTangent<nsr,scheme>(State::Pres);
+    MatrixND<nsr,nsr> ks = theSections[i]->getTangent<nsr,scheme>(State::Pres);
     const VectorND<nsr> s = theSections[i]->getResultant<nsr,scheme>();
+    
     // Perform numerical integration
-    //kb.addMatrixTripleProduct(1.0, *B, ks, wts(i)/L);
     double wti = wt[i] * jsx;
     for (int j = 0; j < nsr; j++) {
       double tmp;
@@ -381,13 +394,14 @@ CubicFrame3d::getTangentStiff()
           ka(k, 4) += 0.5 * phiy * L / (1 + phiy) * tmp;
         }
         break;
-      case SECTION_RESPONSE_T:
+      case FrameStress::T:
         for (int k = 0; k < nsr; k++)
           ka(k, 5) += ks(k, j) * wti;
         break;
       default: break;
       }
     }
+
     for (int j = 0; j < nsr; j++) {
       double tmp;
       switch (scheme[j]) {
@@ -423,7 +437,7 @@ CubicFrame3d::getTangentStiff()
           kb(4, k) += 0.5 * phiy * L / (1 + phiy) * tmp;
         }
         break;
-      case SECTION_RESPONSE_T:
+      case FrameStress::T:
         for (int k = 0; k < 6; k++)
           kb(5, k) += ka(j, k);
         break;
@@ -453,7 +467,7 @@ CubicFrame3d::getTangentStiff()
         q(3) += 0.5 * phiy * L / (1 + phiy) * si;
         q(4) += 0.5 * phiy * L / (1 + phiy) * si;
         break;
-      case SECTION_RESPONSE_T: 
+      case FrameStress::T: 
         q(5) += si;
         break;
       default:
@@ -461,20 +475,24 @@ CubicFrame3d::getTangentStiff()
       }
     }
   }
-
-  q[0] += q0[0];
-  q[1] += q0[1];
-  q[2] += q0[2];
-  q[3] += q0[3];
-  q[4] += q0[4];
+  
+  if (loads != nullptr) {
+    loads->addBasicForce(&q[0]);
+  }
+  // q[0] += q0[0];
+  // q[1] += q0[1];
+  // q[2] += q0[2];
+  // q[3] += q0[3];
+  // q[4] += q0[4];
 
   // Transform to global stiffness
-  K = theCoordTransf->getGlobalStiffMatrix(wrapper, q);
-  return K;
+  return theCoordTransf->getGlobalStiffMatrix(wrapper, q);
 }
 
+
+template <bool shear, int nwm>
 void
-CubicFrame3d::getBasicStiff(Matrix& kb, int initial)
+CubicFrame3d<shear,nwm>::getBasicStiff(Matrix& kb, int initial)
 {
   // Zero for integral
   kb.Zero();
@@ -497,8 +515,9 @@ CubicFrame3d::getBasicStiff(Matrix& kb, int initial)
         (initial) ? theSections[i]->getInitialTangent() 
         : theSections[i]->getSectionTangent();
 
+    //
     // Perform numerical integration
-    //kb.addMatrixTripleProduct(1.0, *B, ks, wts(i)/L);
+    //
     double wti = wt[i] * jsx;
     for (int j = 0; j < nsr; j++) {
       double tmp;
@@ -535,7 +554,7 @@ CubicFrame3d::getBasicStiff(Matrix& kb, int initial)
           ka(k, 4) += 0.5 * phiy * L / (1 + phiy) * tmp;
         }
         break;
-      case SECTION_RESPONSE_T:
+      case FrameStress::T:
         for (int k = 0; k < nsr; k++)
           ka(k, 5) += ks(k, j) * wti;
         break;
@@ -577,7 +596,7 @@ CubicFrame3d::getBasicStiff(Matrix& kb, int initial)
           kb(4, k) += 0.5 * phiy * L / (1 + phiy) * tmp;
         }
         break;
-      case SECTION_RESPONSE_T:
+      case FrameStress::T:
         for (int k = 0; k < 6; k++)
           kb(5, k) += ka(j, k);
         break;
@@ -587,355 +606,70 @@ CubicFrame3d::getBasicStiff(Matrix& kb, int initial)
   }
 }
 
+template <bool shear, int nwm>
 const Matrix&
-CubicFrame3d::getInitialStiff()
+CubicFrame3d<shear,nwm>::getInitialStiff()
 {
-  static Matrix kb(6, 6);
+  thread_local Matrix kb(nq, nq);
 
   this->getBasicStiff(kb, 1);
 
-  // Transform to global stiffness
-  K = theCoordTransf->getInitialGlobalStiffMatrix(kb);
-
-  return K;
+  return theCoordTransf->getInitialGlobalStiffMatrix(kb);
 }
 
+template <bool shear, int nwm>
 const Matrix&
-CubicFrame3d::getMass()
+CubicFrame3d<shear,nwm>::getMass()
 {
-  K.Zero();
+  // thread_local MatrixND<NEN*NDF,NEN*NDF> K;
+  // thread_local Matrix Wrapper(K);
+  K.zero();
 
   if (density == 0.0)
-    return K;
+    return K_wrap;
 
   double L = theCoordTransf->getInitialLength();
 
   // lumped mass matrix
   double m = 0.5 * density * L;
-  K(0, 0) = K(1, 1) = K(2, 2) = K(6, 6) = K(7, 7) = K(8, 8) = m;
+  K(0, 0) = K(1, 1) = K(2, 2) = m;
+  K(NDF+0, NDF+0) = K(NDF+1, NDF+1) = K(NDF+2, NDF+2) = m;
 
-  return K;
+  return K_wrap;
 }
 
+template <bool shear, int nwm>
 void
-CubicFrame3d::zeroLoad()
+CubicFrame3d<shear,nwm>::zeroLoad()
 {
   Q.Zero();
+  if (loads != nullptr) {
+    loads->zeroLoad();
+  }
 
-  q0.zero();
-  p0.zero();
+  // q0.zero();
+  // p0.zero();
 
   return;
 }
 
+
+template <bool shear, int nwm>
 int
-CubicFrame3d::addLoad(ElementalLoad* theLoad, double loadFactor)
+CubicFrame3d<shear,nwm>::addLoad(ElementalLoad* theLoad, double loadFactor)
 {
-  int type;
-  const Vector& data = theLoad->getData(type, loadFactor);
-  double L           = theCoordTransf->getInitialLength();
-
-  if (type == LOAD_TAG_Beam3dUniformLoad) {
-    double wy = data(0) * loadFactor; // Transverse
-    double wz = data(1) * loadFactor; // Transverse
-    double wx = data(2) * loadFactor; // Axial (+ve from node I to J)
-
-    double Vy = 0.5 * wy * L;
-    double Mz = Vy * L / 6.0; // wy*L*L/12
-    double Vz = 0.5 * wz * L;
-    double My = Vz * L / 6.0; // wz*L*L/12
-    double P  = wx * L;
-
-    // Reactions in basic system
-    p0[0] -= P;
-    p0[1] -= Vy;
-    p0[2] -= Vy;
-    p0[3] -= Vz;
-    p0[4] -= Vz;
-
-    // Fixed end forces in basic system
-    q0[0] -= 0.5 * P;
-    q0[1] -= Mz;
-    q0[2] += Mz;
-    q0[3] += My;
-    q0[4] -= My;
-
-  } else if (type == LOAD_TAG_Beam3dPointLoad) {
-    double Py     = data(0) * loadFactor;
-    double Pz     = data(1) * loadFactor;
-    double N      = data(2) * loadFactor;
-    double aOverL = data(3);
-
-    if (aOverL < 0.0 || aOverL > 1.0)
-      return 0;
-
-    double a = aOverL * L;
-    double b = L - a;
-
-    // Reactions in basic system
-    p0[0] -= N;
-    double V1, V2;
-    V1 = Py * (1.0 - aOverL);
-    V2 = Py * aOverL;
-    p0[1] -= V1;
-    p0[2] -= V2;
-    V1 = Pz * (1.0 - aOverL);
-    V2 = Pz * aOverL;
-    p0[3] -= V1;
-    p0[4] -= V2;
-
-    double L2 = 1.0 / (L * L);
-    double a2 = a * a;
-    double b2 = b * b;
-
-    // Fixed end forces in basic system
-    q0[0] -= N * aOverL;
-    double M1, M2;
-    M1 = -a * b2 * Py * L2;
-    M2 = a2 * b * Py * L2;
-    q0[1] += M1;
-    q0[2] += M2;
-    M1 = -a * b2 * Pz * L2;
-    M2 = a2 * b * Pz * L2;
-    q0[3] -= M1;
-    q0[4] -= M2;
+  if (loads == nullptr) {
+    loads = new BasicFrame3d();
+    loads->setLength(theCoordTransf->getInitialLength());
   }
 
-#if 0
-  else if (type == LOAD_TAG_Beam3dThermalAction) {
-
-     // load not inside fire load pattern
-           //static Vector factors(9);
-           //factors.Zero();
-           //factors += loadFactor;
-          // return this->addLoad(theLoad, factors);
-      // This code block is added by LJ and copied from DispBeamColumn2d(Modified edition) for 'FireLoadPattern'--08-May-2012--//[END]
-      counterTemperature = 1;
-      for(int i=0; i<5; i++){
-          residThermal[i]=0;
-      }
-      double ThermalN, ThermalMz, ThermalMy;
-      ThermalN = 0.;
-      ThermalMz = 0;
-      ThermalMy = 0;
-
-      double xi[maxNumSections];
-      beamInt->getSectionLocations(numSections, L, xi);
-      double wt[maxNumSections];
-      beamInt->getSectionWeights(numSections, L, wt);
-
-        // Zero for integration
-        //q.Zero();
-      Vector* dataMixV;
-      dataMixV = new Vector(data.Size());
-
-      *dataMixV=data;
-
-      // Loop over the integration points
-      for (int i = 0; i < numSections; i++) {
-        // Get section stress resultant
-        const Vector &s = theSections[i]->getTemperatureStress(*dataMixV);
-
-        //apply temp along y
-        residThermal[0] = -s(0);
-        residThermal[1] = -s(1);
-        residThermal[2] = s(1);
-        residThermal[3] = -s(2);
-        residThermal[4] = s(2);
-        //apply temp along z
-        //residThermal[0] = -s(0);
-        //residThermal[1] = -0.;
-        //residThermal[2] = -0.;
-        //residThermal[3] = -s(1);
-        //residThermal[4] = s(1);
-        SectionThermalElong[i]=0;
-      }
-      AverageThermalElong=0;
-    }
-
-    //Added by Liming for implementation of NodalThermalAction
-    else if (type == LOAD_TAG_NodalThermalAction) {
-
-        // load not inside fire load pattern
-        AverageThermalElong=0.0;
-        for(int i=0; i<5; i++){
-            residThermal[i]=0;
-        }
-
-        NodalThermalAction* theNodalThermal0 = theNodes[0]->getNodalThermalActionPtr();
-        NodalThermalAction* theNodalThermal1 = theNodes[1]->getNodalThermalActionPtr();
-        int type;
-        const Vector &data0 = theNodalThermal0->getData(type);
-        const Vector &data1 = theNodalThermal1->getData(type);
-        Vector* Loc;Vector* NodalT0;Vector* NodalT1;
-
-        if (data0.Size()==9){
-           Loc = new Vector(9);
-           NodalT0 = new Vector(9);
-           NodalT1 = new Vector(9);
-
-           for(int i =0; i<9;i++){
-               if(data0(2*i+1)-data1(2*i+1)>1e-8||data0(2*i+1)-data1(2*i+1)<-1e-8){
-                       opserr<<"Warning:The NodalThermalAction in dispBeamColumn2dThermalNUT "<<this->getTag()
-                            << "incompatible loc input for datapoint "<< i << endln;
-               }
-               else {
-                   (*Loc)(i)=data0(2*i+1);
-                   (*NodalT0)(i)=data0(2*i);
-                   (*NodalT1)(i)=data1(2*i);
-              }
-           }
-        }
-
-        //for 9 data POINTS
-        else {
-          Loc = new Vector(10);
-          NodalT0 = new Vector(15);
-          NodalT1 = new Vector(15);
-
-          for(int i =0; i<5;i++){
-           if (data0(2*i+1)-data1(2*i+1)>1e-8||data0(2*i+1)-data1(2*i+1)<-1e-8){
-                  opserr <<"Warning:The NodalThermalAction in dispBeamColumn2dThermalNUT "<<this->getTag()
-                         << "incompatible loc input for datapoint "<< i << endln;
-           } else {
-                 //for loc
-                (*Loc)(i)=data0(2*i+1);
-                (*Loc)(i+5)=data0(3*i+12);
-                //for NodalT0
-                (*NodalT0)(i)=data0(2*i);
-                (*NodalT0)(i+5)=data0(3*i+10);
-                (*NodalT0)(i+10)=data0(3*i+11);
-                //for NodalT1
-                (*NodalT1)(i)=data1(2*i);
-                (*NodalT1)(i+5)=data1(3*i+10);
-                (*NodalT1)(i+10)=data1(3*i+11);
-           }
-          }
-        }
-        //for 15 data points
-        double ThermalN, ThermalMz, ThermalMy;
-        ThermalN =  0;
-        ThermalMz = 0;
-        ThermalMy = 0;
-
-        double xi[maxNumSections];
-        beamInt->getSectionLocations(numSections, L, xi);
-        double wt[maxNumSections];
-        beamInt->getSectionWeights(numSections, L, wt);
-
-        // Loop over the integration points
-        for (int i = 0; i < numSections; i++) {
-          // Get section stress resultant
-          Vector* dataMixV;
-          if (NodalT0->Size()==9){
-            for(int m=0;m<9;m++){
-                (*dataMixV)(2*m)=(*NodalT0)(m)+xi[i]*((*NodalT1)(m) - (*NodalT0)(m)); //Linear temperature interpolation
-                (*dataMixV)(2*m+1)=(*Loc)(m);
-                (*dataMixV)(18+m)=1000;
-            }
-          }
-          else if (NodalT0->Size()==15) {
-             for (int m=0;m<5;m++){
-                (*dataMixV)(2*m)=(*NodalT0)(m)+xi[i]*((*NodalT1)(m)-(*NodalT0)(m)); ////5 temps through y, Linear temperature interpolation
-                (*dataMixV)(3*m+10)=(*NodalT0)(m+5)+xi[i]*((*NodalT1)(m+5)-(*NodalT0)(m+5));///////5 temps through Z in bottom flange
-                (*dataMixV)(3*m+11)=(*NodalT0)(m+10)+xi[i]*((*NodalT1)(m+10)-(*NodalT0)(m+10));/////5 temps through Z in top flange
-                (*dataMixV)(2*m+1)=(*Loc)(m);////5 (*Loc)s through y
-                (*dataMixV)(3*m+12)=(*Loc)(m+5);///////5 (*Loc)s through Z
-             }
-          }
-          const Vector &s = theSections[i]->getTemperatureStress(*dataMixV);
-
-          SectionThermalElong[i]= theSections[i]->getThermalElong()(0);
-          //apply temp along y
-          residThermal[0] = -s(0);
-          residThermal[1] = -s(1);
-          residThermal[2] = s(1);
-          residThermal[3] = -s(2);
-          residThermal[4] = s(2);
-          //apply temp along z
-          //residThermal[0] = -s(0);
-          //residThermal[1] = -0.;
-          //residThermal[2] = -0.;
-          //residThermal[3] = -s(1);
-          //residThermal[4] = s(1);
-          double ThermalEloni  = SectionThermalElong[i]*wt[i];
-          AverageThermalElong += ThermalEloni;
-        }
-        counterTemperature = 1;
-    }
-
-    else if(type == LOAD_TAG_ThermalActionWrapper) {
-        counterTemperature = 1;
-        double ThermalN, ThermalMz, ThermalMy;
-        ThermalN =  0;
-        ThermalMz = 0;
-        ThermalMy = 0;
-
-        AverageThermalElong=0.0;
-
-        double xi[maxNumSections];
-        beamInt->getSectionLocations(numSections, L, xi);
-        double wt[maxNumSections];
-        beamInt->getSectionWeights(numSections, L, wt);
-
-         Vector theNode0Crds = theNodes[0]->getCrds();
-         Vector theNode1Crds = theNodes[1]->getCrds();
-         int ndm = theNode0Crds.Size();
-         Vector theIntCrds = Vector(ndm);
-
-        // Loop over the integration points
-         // Get section stress resultant
-        for (int i = 0; i < numSections; i++) {
-          int order = theSections[i]->getOrder();
-          const ID &code = theSections[i]->getType();
-
-          double xi6 = 6.0*xi[i];
-          theIntCrds.Zero();
-          for (int m = 0; m<ndm; m++){
-              theIntCrds(m) =  theNode0Crds(m)+xi[i]*(theNode1Crds(m)- theNode0Crds(m));
-          }
-
-          //NodalThermalActions attached with the wrapper would have been updated by pattern;
-          Vector dataMixV = ((ThermalActionWrapper*) theLoad)->getIntData(theIntCrds);
-
-          const Vector &s = theSections[i]->getTemperatureStress(dataMixV);
-          if (theSections[i]->getClassTag()==SEC_TAG_FiberSection3dThermal)
-              SectionThermalElong[i] = ((FiberSection3dThermal*)theSections[i])->getThermalElong()(0);
-          else if (theSections[i]->getClassTag()==SEC_TAG_FiberSectionGJThermal)
-              SectionThermalElong[i] = ((FiberSectionGJThermal*)theSections[i])->getThermalElong()(0);
-
-
-          //apply temp along y
-          residThermal[0] = -s(0);
-          residThermal[1] = -s(1);
-          residThermal[2] = s(1);
-          residThermal[3] = -s(2);
-          residThermal[4] = s(2);
-
-          //apply temp along z
-          //residThermal[0] = -s(0);
-          //residThermal[1] = -0.;
-          //residThermal[2] = -0.;
-          //residThermal[3] = -s(1);
-          //residThermal[4] = s(1);
-          AverageThermalElong += SectionThermalElong[i]*wt[i];
-    }
-        //end of for loop for section
-        //counterTemperature = 1;
-  }
-#endif
-
-  else {
-    opserr << "CubicFrame3d::addLoad() -- load type unknown for element with tag: "
-           << this->getTag() << "\n";
-    return -1;
-  }
-
+  loads->addLoad(theLoad, loadFactor);
   return 0;
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::addInertiaLoadToUnbalance(const Vector& accel)
+CubicFrame3d<shear,nwm>::addInertiaLoadToUnbalance(const Vector& accel)
 {
   // Check for a quick return
   if (density == 0.0)
@@ -965,13 +699,14 @@ CubicFrame3d::addInertiaLoadToUnbalance(const Vector& accel)
   return 0;
 }
 
+template <bool shear, int nwm>
 const Vector&
-CubicFrame3d::getResistingForce()
+CubicFrame3d<shear,nwm>::getResistingForce()
 {
   double L = theCoordTransf->getInitialLength();
 
   // Zero for integration
-  q.Zero();
+  q.zero();
 
   // Loop over the integration points
   for (int i = 0; i < numSections; i++) {
@@ -1006,32 +741,37 @@ CubicFrame3d::getResistingForce()
         q(3) += 0.5 * phiy * L / (1 + phiy) * si;
         q(4) += 0.5 * phiy * L / (1 + phiy) * si;
         break;
-      case SECTION_RESPONSE_T: q(5) += si; break;
+      case FrameStress::T: q(5) += si; break;
       default:                 break;
       }
     }
   }
 
-  q(0) += q0[0];
-  q(1) += q0[1];
-  q(2) += q0[2];
-  q(3) += q0[3];
-  q(4) += q0[4];
-
-  // Transform forces
-  Vector p0Vec(p0);
-  P = theCoordTransf->getGlobalResistingForce(q, p0Vec);
+  // q(0) += q0[0];
+  // q(1) += q0[1];
+  // q(2) += q0[2];
+  // q(3) += q0[3];
+  // q(4) += q0[4];
+  if (loads != nullptr) {
+    loads->addBasicForce(&q[0]);
+    P = theCoordTransf->getGlobalResistingForce(q, loads->getReactions());
+  } 
+  else {
+    static Vector p0(6);
+    P = theCoordTransf->getGlobalResistingForce(q, p0);
+  }
 
   // Subtract other external nodal loads
   // P_res = P_int - P_ext
   if (density != 0)
     P.addVector(1.0, Q, -1.0);
 
-  return P;
+  return P_wrap;
 }
 
+template <bool shear, int nwm>
 const Vector&
-CubicFrame3d::getResistingForceIncInertia()
+CubicFrame3d<shear,nwm>::getResistingForceIncInertia()
 {
   P = this->getResistingForce();
 
@@ -1064,23 +804,28 @@ CubicFrame3d::getResistingForceIncInertia()
       P.addVector(1.0, this->getRayleighDampingForces(), 1.0);
   }
 
-  return P;
+  return P_wrap;
 }
 
+
+template <bool shear, int nwm>
 int
-CubicFrame3d::sendSelf(int commitTag, Channel& theChannel)
+CubicFrame3d<shear,nwm>::sendSelf(int commitTag, Channel& theChannel)
 {
   return -1;
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::recvSelf(int commitTag, Channel& theChannel, FEM_ObjectBroker& theBroker)
+CubicFrame3d<shear,nwm>::recvSelf(int commitTag, Channel& theChannel, FEM_ObjectBroker& theBroker)
 {
   return -1;
 }
 
+
+template <bool shear, int nwm>
 void
-CubicFrame3d::Print(OPS_Stream& s, int flag)
+CubicFrame3d<shear,nwm>::Print(OPS_Stream& s, int flag)
 {
   const ID& node_tags = this->getExternalNodes();
 
@@ -1117,26 +862,6 @@ CubicFrame3d::Print(OPS_Stream& s, int flag)
     s << "\tCoordTransf: " << theCoordTransf->getTag() << "\n";
     s << "\tmass density:  " << density << "\n";
 
-    double N, Mz1, Mz2, Vy, My1, My2, Vz, T;
-    double L        = theCoordTransf->getInitialLength();
-    double oneOverL = 1.0 / L;
-
-    N   = q(0);
-    Mz1 = q(1);
-    Mz2 = q(2);
-    Vy  = (Mz1 + Mz2) * oneOverL;
-    My1 = q(3);
-    My2 = q(4);
-    Vz  = -(My1 + My2) * oneOverL;
-    T   = q(5);
-
-    s << "\tEnd 1 Forces (P Mz Vy My Vz T): " << -N + p0[0] << ' ' << Mz1 << ' ' << Vy + p0[1]
-      << ' ' << My1 << ' ' << Vz + p0[3] << ' ' << -T << "\n";
-    s << "\tEnd 2 Forces (P Mz Vy My Vz T): " << N << ' ' << Mz2 << ' ' << -Vy + p0[2] << ' ' << My2
-      << ' ' << -Vz + p0[4] << ' ' << T << "\n";
-    s << "Number of sections: " << numSections << "\n";
-    beamInt->Print(s, flag);
-
     for (int i = 0; i < numSections; i++) {
       theSections[i]->Print(s, flag);
     }
@@ -1145,8 +870,9 @@ CubicFrame3d::Print(OPS_Stream& s, int flag)
 }
 
 
+template <bool shear, int nwm>
 Response*
-CubicFrame3d::setResponse(const char** argv, int argc, OPS_Stream& output)
+CubicFrame3d<shear,nwm>::setResponse(const char** argv, int argc, OPS_Stream& output)
 {
 
   Response* theResponse = 0;
@@ -1204,13 +930,13 @@ CubicFrame3d::setResponse(const char** argv, int argc, OPS_Stream& output)
     output.tag("ResponseType", "M1");
     output.tag("ResponseType", "M2");
 
-    theResponse = new ElementResponse(this, 9, Vector(6));
+    theResponse = new ElementResponse(this, 9, Vector(nq));
   } else if (strcmp(argv[0], "basicStiffness") == 0) {
     output.tag("ResponseType", "N");
     output.tag("ResponseType", "M1");
     output.tag("ResponseType", "M2");
 
-    theResponse = new ElementResponse(this, 19, Matrix(6, 6));
+    theResponse = new ElementResponse(this, 19, Matrix(nq, nq));
 
   // chord rotation -
   } else if (strcmp(argv[0], "chordRotation") == 0 || strcmp(argv[0], "chordDeformation") == 0 ||
@@ -1223,7 +949,7 @@ CubicFrame3d::setResponse(const char** argv, int argc, OPS_Stream& output)
     output.tag("ResponseType", "thetaY_2");
     output.tag("ResponseType", "thetaX");
 
-    theResponse = new ElementResponse(this, 3, Vector(6));
+    theResponse = new ElementResponse(this, 3, Vector(nq));
 
   // 4: Plastic rotation
   } else if (strcmp(argv[0], "plasticRotation") == 0 ||
@@ -1236,7 +962,7 @@ CubicFrame3d::setResponse(const char** argv, int argc, OPS_Stream& output)
     output.tag("ResponseType", "thetaYP_2");
     output.tag("ResponseType", "thetaXP");
 
-    theResponse = new ElementResponse(this, 4, Vector(6));
+    theResponse = new ElementResponse(this, 4, Vector(nq));
 
 
   } else if (strcmp(argv[0], "RayleighForces") == 0 || 
@@ -1342,8 +1068,9 @@ CubicFrame3d::setResponse(const char** argv, int argc, OPS_Stream& output)
   return theResponse;
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::getResponse(int responseID, Information& eleInfo)
+CubicFrame3d<shear,nwm>::getResponse(int responseID, Information& eleInfo)
 {
   double N, V, M1, M2, T;
   double L        = theCoordTransf->getInitialLength();
@@ -1356,6 +1083,13 @@ CubicFrame3d::getResponse(int responseID, Information& eleInfo)
     return eleInfo.setVector(this->getRayleighDampingForces());
 
   else if (responseID == 2) {
+    Vector p0(6);
+    if (loads != nullptr) {
+      p0 = loads->getReactions();
+    } else {
+      p0.Zero();
+    }
+
     // Axial
     N    = q(0);
     P(6) = N;
@@ -1372,7 +1106,7 @@ CubicFrame3d::getResponse(int responseID, Information& eleInfo)
     P(5)  = M1;
     P(11) = M2;
     V     = (M1 + M2) * oneOverL;
-    P(1)  = V + p0[1];
+    P(1)  =  V + p0[1];
     P(7)  = -V + p0[2];
 
     // Moments about y and shears along z
@@ -1384,7 +1118,7 @@ CubicFrame3d::getResponse(int responseID, Information& eleInfo)
     P(2)  = -V + p0[3];
     P(8)  = V + p0[4];
 
-    return eleInfo.setVector(P);
+    return eleInfo.setVector(P_wrap);
   }
 
   else if (responseID == 9) {
@@ -1457,8 +1191,9 @@ CubicFrame3d::getResponse(int responseID, Information& eleInfo)
 }
 
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::setParameter(const char** argv, int argc, Parameter& param)
+CubicFrame3d<shear,nwm>::setParameter(const char** argv, int argc, Parameter& param)
 {
   if (argc < 1)
     return -1;
@@ -1536,8 +1271,9 @@ CubicFrame3d::setParameter(const char** argv, int argc, Parameter& param)
   return result;
 }
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::updateParameter(int parameterID, Information& info)
+CubicFrame3d<shear,nwm>::updateParameter(int parameterID, Information& info)
 {
   if (parameterID == 1) {
     density = info.theDouble;
@@ -1547,8 +1283,9 @@ CubicFrame3d::updateParameter(int parameterID, Information& info)
 }
 
 
+template <bool shear, int nwm>
 int
-CubicFrame3d::activateParameter(int passedParameterID)
+CubicFrame3d<shear,nwm>::activateParameter(int passedParameterID)
 {
   parameterID = passedParameterID;
 
@@ -1556,34 +1293,38 @@ CubicFrame3d::activateParameter(int passedParameterID)
 }
 
 
+template <bool shear, int nwm>
 const Matrix&
-CubicFrame3d::getInitialStiffSensitivity(int gradNumber)
+CubicFrame3d<shear,nwm>::getInitialStiffSensitivity(int gradNumber)
 {
-  thread_local MatrixND<12,12> dK{0.0};
+  thread_local MatrixND<NEN*NDF,NEN*NDF> dK{};
   thread_local Matrix wrapper(dK);
   return wrapper;
 }
 
+template <bool shear, int nwm>
 const Matrix&
-CubicFrame3d::getMassSensitivity(int gradNumber)
+CubicFrame3d<shear,nwm>::getMassSensitivity(int gradNumber)
 {
-  K.Zero();
+  K.zero();
 
   if (density == 0.0 || parameterID != 1)
-    return K;
+    return K_wrap;
 
   double L = theCoordTransf->getInitialLength();
 
   // Lumped mass matrix
   double m = 0.5 * L;
-  K(0, 0) = K(1, 1) = K(2, 2) = K(6, 6) = K(7, 7) = K(8, 8) = m;
+  K(0, 0) = K(1, 1) = K(2, 2) = m;
+  K(6, 6) = K(7, 7) = K(8, 8) = m;
 
-  return K;
+  return K_wrap;
 }
 
 
+template <bool shear, int nwm>
 const Vector&
-CubicFrame3d::getResistingForceSensitivity(int gradNumber)
+CubicFrame3d<shear,nwm>::getResistingForceSensitivity(int gradNumber)
 {
   double L   = theCoordTransf->getInitialLength();
   double jsx = 1.0 / L;
@@ -1595,9 +1336,6 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
 
   // Loop over the integration points
   for (int i = 0; i < numSections; i++) {
-
-    int order      = theSections[i]->getOrder();
-    const ID& code = theSections[i]->getType();
 
     double xi6  = 6.0 * xi[i];
     double phiz = phizs[i];
@@ -1631,16 +1369,19 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
         dqdh(3) += 1.0 / (1 + phiy) * (xi6 - 4.0 - phiy) * sensi;
         dqdh(4) += 1.0 / (1 + phiy) * (xi6 - 2.0 + phiy) * sensi;
         break;
-      case SECTION_RESPONSE_T: dqdh(5) += sensi; break;
-      default:                 break;
+      case FrameStress::T: 
+        dqdh(5) += sensi; 
+        break;
+      default:
+        break;
       }
     }
   }
 
   // Transform forces
-  static Vector dp0dh(6); // No distributed loads
+  static Vector dp0dh(nq); // No distributed loads
 
-  P.Zero();
+  P.zero();
 
 
 
@@ -1648,14 +1389,12 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
 
     // Perform numerical integration to obtain basic stiffness matrix
     // Some extra declarations
-    static Matrix kbmine(6, 6);
+    static Matrix kbmine(nq, nq);
     kbmine.Zero();
-    q.Zero();
+    q.zero();
 
     for (int i = 0; i < numSections; i++) {
       double tmp;
-
-      int order      = theSections[i]->getOrder();
 
       double xi6  = 6.0 * xi[i];
       double phiz = phizs[i];
@@ -1666,7 +1405,7 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
       const MatrixND<nsr,nsr> ks = theSections[i]->getTangent<nsr,scheme>(State::Pres);
       const VectorND<nsr>     s  = theSections[i]->getResultant<nsr,scheme>();
 
-      MatrixND<nsr,6> ka;
+      MatrixND<nsr,nq> ka;
       ka.zero();
 
       for (int j = 0; j < nsr; j++) {
@@ -1713,7 +1452,7 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
             ka(k, 4) += 0.5 * phiy * L / (1 + phiy) * tmp;
           }
           break;
-        case SECTION_RESPONSE_T:
+        case FrameStress::T:
           q(5) += si;
           for (int k = 0; k < nsr; k++)
             ka(k, 5) += ks(k, j) * wti;
@@ -1722,6 +1461,7 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
         default: break;
         }
       }
+
       for (int j = 0; j < nsr; j++) {
         switch (scheme[j]) {
         case FrameStress::N:
@@ -1729,6 +1469,7 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
             kbmine(0, k) += ka(j, k);
           }
           break;
+
         case FrameStress::Mz:
           for (int k = 0; k < 6; k++) {
             double tmp = ka(j, k);
@@ -1757,7 +1498,7 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
             kbmine(4, k) += 0.5 * phiy * L / (1 + phiy) * tmp;
           }
           break;
-        case SECTION_RESPONSE_T:
+        case FrameStress::T:
           for (int k = 0; k < 6; k++) {
             kbmine(5, k) += ka(j, k);
           }
@@ -1786,13 +1527,14 @@ CubicFrame3d::getResistingForceSensitivity(int gradNumber)
   // A^T (dqdh + k dAdh u)
   P += theCoordTransf->getGlobalResistingForce(dqdh, dp0dh);
 
-  return P;
+  return P_wrap;
 }
 
 
 // NEW METHOD
+template <bool shear, int nwm>
 int
-CubicFrame3d::commitSensitivity(int gradNumber, int numGrads)
+CubicFrame3d<shear,nwm>::commitSensitivity(int gradNumber, int numGrads)
 {
   // Get basic deformation and sensitivities
   const Vector& v = theCoordTransf->getBasicTrialDisp();
@@ -1842,7 +1584,7 @@ CubicFrame3d::commitSensitivity(int gradNumber, int numGrads)
       case FrameStress::Vz:
         e(j) = 0.5 * phiy / (1 + phiy) * dvdh(3) + 0.5 * phiy / (1 + phiy) * dvdh(4);
         break;
-      case SECTION_RESPONSE_T: e(j) = oneOverL * dvdh(5) + d1oLdh * v(5); break;
+      case FrameStress::T: e(j) = oneOverL * dvdh(5) + d1oLdh * v(5); break;
       default:                 e(j) = 0.0; break;
       }
     }

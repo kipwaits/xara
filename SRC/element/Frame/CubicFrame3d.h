@@ -14,15 +14,18 @@
 #include <Vector.h>
 #include <VectorND.h>
 #include <FrameSection.h>
+
 #include <ID.h>
 
 class Node;
 class CrdTransf;
 class BeamIntegration;
 class Response;
+class BasicFrame3d;
 using namespace OpenSees;
 
 namespace OpenSees {
+template <bool shear, int nwm>
 class CubicFrame3d : public Element {
 public:
   CubicFrame3d(int tag, 
@@ -46,7 +49,7 @@ public:
   Node** getNodePtrs();
 
   int getNumDOF();
-  void setDomain(Domain* theDomain);
+  void setDomain(Domain*);
 
   // Element: State
   int commitState();
@@ -94,10 +97,10 @@ private:
   void getBasicStiff(Matrix& kb, int initial = 0);
 private:
   constexpr static int 
-        nsr = 6,              // number of section resultants
+        nsr = shear? 6 : 4,   // number of section resultants
         ndm = 3,              // dimension of the problem (3D)
-        nq  = 6,              // number of element dof's in the basic system
-        NDF = 6,              //
+        nq  = 6+nwm*2,        // number of element dof's in the basic system
+        NDF = 6+nwm,          //
         NEN = 2,              // number of element nodes
         maxNumSections = 20;
 
@@ -118,9 +121,7 @@ private:
 
 
   Vector Q;       // Applied nodal loads
-  Vector q;       // Basic force
-  VectorND<5> q0; // Fixed end forces in basic system (no torsion)
-  VectorND<5> p0; // Reactions in basic system (no torsion)
+  VectorND<nq> q;
 
   double density;             // Mass density per unit length
   double total_mass,
@@ -129,15 +130,25 @@ private:
   bool   use_density;
   bool   mass_initialized;
 
+  BasicFrame3d* loads;
+
   int parameterID;
 
-  static Matrix K; // Element stiffness, damping, and mass Matrix
-  static Vector P; // Element resisting force vector
+  // Matrix K; // Element stiffness, damping, and mass Matrix
+  MatrixND<NEN*NDF,NEN*NDF> K;
+  VectorND<NDF*NEN> P; // Element resisting force vector
+  Matrix K_wrap;
+  Vector P_wrap;
 
   static constexpr FrameStressLayout scheme = {
-      FrameStress::N, FrameStress::Vy, FrameStress::Vz,
-      FrameStress::T, FrameStress::My, FrameStress::Mz,
+      FrameStress::N, 
+      FrameStress::T, 
+      FrameStress::My, 
+      FrameStress::Mz,
+      FrameStress::Vy, 
+      FrameStress::Vz,
   };
 };
 }
+#include <CubicFrame3d.tpp>
 #endif

@@ -36,15 +36,22 @@ class BasicFrame3d {
       L = length;
     }
 
-    // virtual int getIntegral(Field field, State state, double& total) {
-    //   return -1;
-    // }
-
     //
     // For Element
     //
     void  zeroLoad();
     int   addLoad(ElementalLoad *theLoad, double loadFactor);
+
+
+    void addBasicForce(double* q) const {
+      for (int i = 0; i < 6; ++i)
+        q[i] += q0[i];
+    }
+
+    Vector
+    getReactions() {
+      return Vector(p0);
+    }
 
 protected:
 
@@ -54,6 +61,7 @@ protected:
   OpenSees::VectorND<6> p0;  // Reactions in basic system
                              // TODO(cmp): change to size 12
 
+  
   // Supplied to children
   // Reactions of basic system due to element loads
   void addReactionGrad(double *dp0dh, int gradNumber, double dLdh);

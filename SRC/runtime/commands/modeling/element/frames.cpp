@@ -228,11 +228,18 @@ CreateFrame(BasicModelBuilder& builder,
         }
 
         if (strcmp(name, "CubicFrame") == 0) {
-          theElement = new CubicFrame3d(tag, nodes, 
-                                        sections,
-                                        beamIntegr, 
-                                        *theTransf, // TODO: Use FrameTransformBuilder
-                                        mass);
+          if (options.shear_flag)
+            theElement = new CubicFrame3d<true,0>(tag, nodes, 
+                                          sections,
+                                          beamIntegr, 
+                                          *theTransf, // TODO: Use FrameTransformBuilder
+                                          mass);
+          else
+            theElement = new CubicFrame3d<false,0>(tag, nodes, 
+                                          sections,
+                                          beamIntegr, 
+                                          *theTransf, // TODO: Use FrameTransformBuilder
+                                          mass);
         } 
 
         else if (strcmp(name, "DisplFrame") == 0) {

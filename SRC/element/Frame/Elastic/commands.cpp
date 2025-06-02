@@ -603,7 +603,8 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
                                    options.mass_type,
                                    options.relz_flag, 
                                    options.rely_flag,
-                                   options.geom_flag);
+                                   options.geom_flag,
+                                   options.shear_flag);
 
       } else {
         theBeam = new ElasticBeam3d(tag, 

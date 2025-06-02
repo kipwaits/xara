@@ -37,7 +37,8 @@ PrismFrame3d::PrismFrame3d(int tag, std::array<int, 2>& nodes,
                            FrameTransformBuilder& tb,
                            double r, int cm,
                            int rz, int ry,
-                           int geom)
+                           int geom,
+                           int shear_flag)
 
   :FiniteElement<2, 3, 6> (tag, ELE_TAG_ElasticBeam3d, nodes), 
    BasicFrame3d(),
@@ -158,7 +159,7 @@ PrismFrame3d::setNodes()
   else
     phiY = 0.0;
   if (Az != 0)
-    phiZ = 12.0 * E * Iz / (L * L * G * Ay);
+    phiZ = 12.0 * E * Iy / (L * L * G * Az);
   else
     phiZ = 0.0;
   //
@@ -603,7 +604,7 @@ PrismFrame3d::Print(OPS_Stream &s, int flag)
 
       s << "\"releasez\": "<< releasez << ", ";
       s << "\"releasey\": "<< releasey << ", ";                
-      s << "\"crdTransformation\": " << basic_system->getTag();
+      s << "\"transform\": " << basic_system->getTag();
       s << ", ";
 
       // 

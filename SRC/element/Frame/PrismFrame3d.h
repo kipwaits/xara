@@ -35,7 +35,8 @@ class PrismFrame3d : public BasicFrame3d, public FiniteElement<2, 3, 6>
                  FrameTransformBuilder&,
                  double density, int mass_flag,
 		             int releasez, int releasey,
-                 int geom);
+                 int geom,
+                 int shear_flag);
 
     PrismFrame3d(int tag,
                  std::array<int,2>& nodes,

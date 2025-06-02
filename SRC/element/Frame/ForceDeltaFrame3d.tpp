@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Higher-order frame formulations (Shear/Euler) with force/curvature interpolation
@@ -3608,7 +3610,7 @@ ForceDeltaFrame3d<NIP,nsr>::recvSelf(int commitTag, Channel& theChannel, FEM_Obj
       delete theCoordTransf;
 
     // TODO(cmp) - add FrameTransform to ObjBroker
-    theCoordTransf = nullptr; //theBroker.getNewFrameTransform3d(crdTransfClassTag);
+    theCoordTransf = nullptr; //theBroker.getNewCrdTransf(crdTransfClassTag);
 
     if (theCoordTransf == nullptr) {
       opserr << "ForceDeltaFrame3d::recvSelf() - failed to obtain a CrdTrans object with classTag"

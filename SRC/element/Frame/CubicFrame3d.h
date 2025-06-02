@@ -17,7 +17,7 @@
 #include <ID.h>
 
 class Node;
-class FrameTransform3d;
+class CrdTransf;
 class BeamIntegration;
 class Response;
 using namespace OpenSees;
@@ -28,7 +28,7 @@ public:
   CubicFrame3d(int tag, 
                std::array<int, 2>&,
                std::vector<FrameSection*>&, BeamIntegration&,
-               FrameTransform3d&, 
+               CrdTransf&, 
                double rho);
   CubicFrame3d();
   ~CubicFrame3d();
@@ -103,7 +103,7 @@ private:
 
   int numSections;
   FrameSection** theSections;       // the materials
-  FrameTransform3d* theCoordTransf; // coordinate transformation object
+  CrdTransf* theCoordTransf; // coordinate transformation object
   BeamIntegration* beamInt;
 
   double xi[maxNumSections];

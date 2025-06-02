@@ -38,7 +38,7 @@ CubicFrame3d::CubicFrame3d(int tag,
                            std::array<int, 2>& nodes, 
                            std::vector<FrameSection*>& sections,
                            BeamIntegration& bi,
-                           FrameTransform3d& coordTransf, 
+                           CrdTransf& coordTransf, 
                            double r)
  : Element(tag, ELE_TAG_CubicFrame3d),
    numSections(sections.size()),
@@ -62,7 +62,7 @@ CubicFrame3d::CubicFrame3d(int tag,
   beamInt = bi.getCopy();
 
 
-  theCoordTransf = coordTransf.getCopy();
+  theCoordTransf = coordTransf.getCopy3d();
 
   // Set connected external node IDs
   connectedExternalNodes(0) = nodes[0];

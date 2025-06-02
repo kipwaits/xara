@@ -35,7 +35,7 @@ public:
 
   ExactFrame3d(int tag, std::array<int,nen>& nodes,
                FrameSection *section[nen-1], 
-               FrameTransform3d& transf
+               CrdTransf& transf
   );
 
   ~ExactFrame3d();
@@ -142,7 +142,7 @@ public:
 
     std::array<GaussPoint,nip> pres;
     std::array<GaussPoint,nip> past;
-    FrameTransform3d*       transform;
+    CrdTransf*       transform;
     Logarithm               logarithm;
     BeamIntegration*        stencil;
 

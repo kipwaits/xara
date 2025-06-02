@@ -35,7 +35,7 @@
 #include <Vector.h>
 #include <Matrix.h>
 
-class CorotCrdTransf3d: public FrameTransform3d
+class CorotCrdTransf3d: public CrdTransf
 {
 public:
     CorotCrdTransf3d(int tag, const Vector &vecInLocXZPlane,
@@ -65,7 +65,7 @@ public:
     const Matrix &getGlobalStiffMatrix(const Matrix &basicStiff, const Vector &basicForce);
     const Matrix &getInitialGlobalStiffMatrix(const Matrix &basicStiff);
     
-    virtual FrameTransform3d *getCopy() final;
+    virtual CrdTransf *getCopy() final;
     
     int sendSelf(int cTag, Channel &theChannel);
     int recvSelf(int cTag, Channel &theChannel, FEM_ObjectBroker &theBroker);

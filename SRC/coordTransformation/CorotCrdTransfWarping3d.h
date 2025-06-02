@@ -33,7 +33,7 @@
 #include <Vector.h>
 #include <Matrix.h>
 
-class CorotCrdTransfWarping3d: public FrameTransform3d
+class CorotCrdTransfWarping3d: public CrdTransf
 {
 public:
     CorotCrdTransfWarping3d(int tag, const Vector &vecInLocXZPlane,

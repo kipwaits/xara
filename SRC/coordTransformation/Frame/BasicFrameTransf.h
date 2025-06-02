@@ -23,7 +23,7 @@
 namespace OpenSees {
 
 template<int ndf=6>
-class BasicFrameTransf3d: public FrameTransform3d
+class BasicFrameTransf3d: public CrdTransf
 {
 public:
     BasicFrameTransf3d(FrameTransform<2,ndf> *t);
@@ -32,7 +32,7 @@ public:
 
     virtual int getLocalAxes(Vector &x, Vector &y, Vector &z);
 
-    virtual FrameTransform3d *getCopy();
+    virtual CrdTransf *getCopy();
 
     virtual double getInitialLength();
     virtual double getDeformedLength();

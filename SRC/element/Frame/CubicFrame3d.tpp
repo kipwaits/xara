@@ -101,19 +101,19 @@ CubicFrame3d<shear,nwm>::CubicFrame3d()
 template <bool shear, int nwm>
 CubicFrame3d<shear,nwm>::~CubicFrame3d()
 {
-  for (int i = 0; i < numSections; i++) {
-    if (theSections[i])
-      delete theSections[i];
-  }
+  if (theSections != nullptr)
+    for (int i = 0; i < numSections; i++) {
+      if (theSections[i] != nullptr)
+        delete theSections[i];
+    }
 
   // Delete the array of pointers to SectionForceDeformation pointer arrays
-  if (theSections)
-    delete[] theSections;
+  delete[] theSections;
 
   if (theCoordTransf)
     delete theCoordTransf;
 
-  if (beamInt != 0)
+  if (beamInt != nullptr)
     delete beamInt;
 }
 
@@ -180,13 +180,11 @@ CubicFrame3d<shear,nwm>::setDomain(Domain* theDomain)
 
   double L = theCoordTransf->getInitialLength();
 
-  if (L == 0.0) {
+  if (L == 0.0)
     return;
-  }
 
   for (int i = 0; i < numSections; i++) {
     const Matrix& ks0 = theSections[i]->getInitialTangent();
-    int order         = theSections[i]->getOrder();
     const ID& code    = theSections[i]->getType();
 
     double EI = 0.0;
@@ -1044,7 +1042,7 @@ CubicFrame3d<shear,nwm>::setResponse(const char** argv, int argc, OPS_Stream& ou
 
           output.endTag();
 
-          if (theSectionResponse != 0) {
+          if (theSectionResponse != nullptr) {
             numResponse = theCResponse->addResponse(theSectionResponse);
           }
         }
@@ -1061,7 +1059,7 @@ CubicFrame3d<shear,nwm>::setResponse(const char** argv, int argc, OPS_Stream& ou
     theResponse = new ElementResponse(this, 13, 0.0);
   }
 
-  if (theResponse == 0)
+  if (theResponse == nullptr)
     theResponse = theCoordTransf->setResponse(argv, argc, output);
 
   output.endTag();
@@ -1288,7 +1286,6 @@ int
 CubicFrame3d<shear,nwm>::activateParameter(int passedParameterID)
 {
   parameterID = passedParameterID;
-
   return 0;
 }
 
@@ -1550,9 +1547,6 @@ CubicFrame3d<shear,nwm>::commitSensitivity(int gradNumber, int numGrads)
 
   // Loop over the integration points
   for (int i = 0; i < numSections; i++) {
-
-    int order      = theSections[i]->getOrder();
-    const ID& code = theSections[i]->getType();
 
     VectorND<nsr> e;
 

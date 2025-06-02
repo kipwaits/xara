@@ -43,7 +43,7 @@ Matrix PDeltaCrdTransf3d::kg(12, 12);
 
 
 PDeltaCrdTransf3d::PDeltaCrdTransf3d(int tag, const Vector &vecInLocXZPlane)
-    : FrameTransform3d(tag, CRDTR_TAG_PDeltaCrdTransf3d), nodeIPtr(0), nodeJPtr(0),
+    : CrdTransf(tag, CRDTR_TAG_PDeltaCrdTransf3d), nodeIPtr(0), nodeJPtr(0),
       nodeIOffset(0), nodeJOffset(0), L(0), ul17(0), ul28(0),
       nodeIInitialDisp(0), nodeJInitialDisp(0), initialDispChecked(false)
 {
@@ -60,7 +60,7 @@ PDeltaCrdTransf3d::PDeltaCrdTransf3d(int tag, const Vector &vecInLocXZPlane)
 PDeltaCrdTransf3d::PDeltaCrdTransf3d(int tag, const Vector &vecInLocXZPlane,
                                      const Vector &rigJntOffset1,
                                      const Vector &rigJntOffset2)
-    : FrameTransform3d(tag, CRDTR_TAG_PDeltaCrdTransf3d), nodeIPtr(0), nodeJPtr(0),
+    : CrdTransf(tag, CRDTR_TAG_PDeltaCrdTransf3d), nodeIPtr(0), nodeJPtr(0),
       nodeIOffset(0), nodeJOffset(0), L(0), ul17(0), ul28(0),
       nodeIInitialDisp(0), nodeJInitialDisp(0), initialDispChecked(false)
 {
@@ -100,7 +100,7 @@ PDeltaCrdTransf3d::PDeltaCrdTransf3d(int tag, const Vector &vecInLocXZPlane,
 // constructor:
 // invoked by a FEM_ObjectBroker, recvSelf() needs to be invoked on this object.
 PDeltaCrdTransf3d::PDeltaCrdTransf3d()
-    : FrameTransform3d(0, CRDTR_TAG_PDeltaCrdTransf3d), nodeIPtr(0), nodeJPtr(0),
+    : CrdTransf(0, CRDTR_TAG_PDeltaCrdTransf3d), nodeIPtr(0), nodeJPtr(0),
       nodeIOffset(0), nodeJOffset(0), L(0), ul17(0), ul28(0),
       nodeIInitialDisp(0), nodeJInitialDisp(0), initialDispChecked(false)
 {
@@ -1170,12 +1170,11 @@ PDeltaCrdTransf3d::getInitialGlobalStiffMatrix(const Matrix &KB)
   return kg;
 }
 
-FrameTransform3d *
-PDeltaCrdTransf3d::getCopy()
+CrdTransf *
+PDeltaCrdTransf3d::getCopy3d()
 {
   // create a new instance of PDeltaCrdTransf3d
 
-  PDeltaCrdTransf3d *theCopy;
 
   static Vector xz(3);
   xz(0) = R[2][0];
@@ -1197,7 +1196,7 @@ PDeltaCrdTransf3d::getCopy()
     offsetJ(2) = nodeJOffset[2];
   }
 
-  theCopy = new PDeltaCrdTransf3d(this->getTag(), xz, offsetI, offsetJ);
+  PDeltaCrdTransf3d *theCopy = new PDeltaCrdTransf3d(this->getTag(), xz, offsetI, offsetJ);
 
   theCopy->nodeIPtr = nodeIPtr;
   theCopy->nodeJPtr = nodeJPtr;

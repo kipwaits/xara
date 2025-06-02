@@ -137,22 +137,4 @@ public:
 
 #include "FrameTransform.tpp"
 
-//
-// 3D
-//
-class FrameTransform3d : public CrdTransf {
-
-public:
-  FrameTransform3d(int tag, int classTag) : CrdTransf(tag, classTag) {}
-
-  virtual FrameTransform3d *getCopy() {
-    return nullptr;
-  }
-
-  virtual CrdTransf *getCopy3d() {
-    return getCopy();
-  }
-
-};
-
 #endif // include guard

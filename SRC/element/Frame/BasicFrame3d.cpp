@@ -192,7 +192,6 @@ BasicFrame3d::addLoad(ElementalLoad *theLoad, double loadFactor)
 
 
 void
-//BasicFrame3d::computeReactions(VectorND<6>& p0)
 BasicFrame3d::computeReactions(double* p0)
 {
 

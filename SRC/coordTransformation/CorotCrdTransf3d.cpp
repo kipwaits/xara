@@ -56,7 +56,7 @@ Matrix CorotCrdTransf3d::A(3, 3);
 CorotCrdTransf3d::CorotCrdTransf3d(int tag, const Vector &vecInLocXZPlane,
                                        const Vector &rigJntOffsetI,
                                        const Vector &rigJntOffsetJ)
-    : FrameTransform3d(tag, CRDTR_TAG_CorotCrdTransf3d), vAxis(3), nodeIOffset(3),
+    : CrdTransf(tag, CRDTR_TAG_CorotCrdTransf3d), vAxis(3), nodeIOffset(3),
       nodeJOffset(3), xAxis(3), nodeIPtr(0), nodeJPtr(0), R0(3, 3), L(0), Ln(0),
       alphaIq(4), alphaJq(4), alphaIqcommit(4), alphaJqcommit(4), alphaI(3), alphaJ(3),
       ulcommit(7), ul(7), ulpr(7), nodeIInitialDisp(0), nodeJInitialDisp(0),
@@ -133,7 +133,7 @@ CorotCrdTransf3d::CorotCrdTransf3d(int tag, const Vector &vecInLocXZPlane,
 // constructor:
 // invoked by a FEM_ObjectBroker, recvSelf() needs to be invoked on this object.
 CorotCrdTransf3d::CorotCrdTransf3d()
-    : FrameTransform3d(0, CRDTR_TAG_CorotCrdTransf3d), vAxis(3), nodeIOffset(3), nodeJOffset(3),
+    : CrdTransf(0, CRDTR_TAG_CorotCrdTransf3d), vAxis(3), nodeIOffset(3), nodeJOffset(3),
       xAxis(3), nodeIPtr(0), nodeJPtr(0), R0(3, 3), L(0), Ln(0), alphaIq(4), alphaJq(4),
       alphaIqcommit(4), alphaJqcommit(4), alphaI(3), alphaJ(3), ulcommit(7), ul(7),
       ulpr(7), nodeIInitialDisp(0), nodeJInitialDisp(0), initialDispChecked(false)
@@ -1826,7 +1826,7 @@ CorotCrdTransf3d::getKs2Matrix(const Vector &ri, const Vector &z) const
   return ks2;
 }
 
-FrameTransform3d *
+CrdTransf *
 CorotCrdTransf3d::getCopy()
 {
   // create a new instance of CorotCrdTransf3d

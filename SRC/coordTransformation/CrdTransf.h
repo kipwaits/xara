@@ -42,16 +42,16 @@ class CrdTransf: public TaggedObject, public MovableObject
 {
 public:
     CrdTransf(int tag, int classTag);
-    CrdTransf();
+    // CrdTransf();
     virtual ~CrdTransf();
 
     virtual CrdTransf *getCopy2d() {return nullptr;};
     virtual CrdTransf *getCopy3d() {return nullptr;};
 
-    virtual int getLocalAxes(Vector &xAxis, Vector &yAxis, Vector &zAxis);
+    virtual int getLocalAxes(Vector &x, Vector &y, Vector &z);
     virtual int getRigidOffsets(Vector &offsets);
   
-    virtual int    initialize(Node *node1Pointer, Node *node2Pointer) = 0;
+    virtual int    initialize(Node *ni, Node *nj) = 0;
     virtual int    update() = 0;
     virtual double getInitialLength() = 0;
     virtual double getDeformedLength() = 0;
@@ -98,13 +98,6 @@ private:
 };
 
 // some additional methods related to prototypes created for copy constructors
-#if !defined(OPS_USE_RUNTIME)
-extern bool       OPS_addCrdTransf(CrdTransf *newComponent);
-extern CrdTransf *OPS_getCrdTransf(int tag);
-#endif
-extern bool       OPS_removeCrdTransf(int tag);
-extern void       OPS_clearAllCrdTransf();
-extern void       OPS_printCrdTransf(OPS_Stream &s, int flag=0);
 extern ID       OPS_getAllCrdTransfTags();
 
 #endif

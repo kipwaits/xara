@@ -32,7 +32,7 @@ public:
 
     virtual int getLocalAxes(Vector &x, Vector &y, Vector &z);
 
-    virtual CrdTransf *getCopy();
+    virtual CrdTransf *getCopy3d() override final;
 
     virtual double getInitialLength();
     virtual double getDeformedLength();

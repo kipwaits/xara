@@ -40,11 +40,6 @@ typedef GenericResponse<CrdTransf> CrdTransfResponse;
 
 static MapOfTaggedObjects theCrdTransfObjects;
 
-void
-OPS_ADD_RUNTIME_VXV(OPS_clearAllCrdTransf)
-{
-  theCrdTransfObjects.clearAll();
-}
 
 ID OPS_getAllCrdTransfTags() {
 
@@ -64,12 +59,11 @@ ID OPS_getAllCrdTransfTags() {
 
 
 
-// constructor:
 CrdTransf::CrdTransf(int tag, int classTag):TaggedObject(tag), MovableObject(classTag)
 {
 }
 
-// destructor:
+
 CrdTransf::~CrdTransf()
 {
 }
@@ -80,7 +74,6 @@ CrdTransf::getLocalAxes(Vector &xAxis, Vector &yAxis, Vector &zAxis)
   xAxis.Zero();
   yAxis.Zero();
   zAxis.Zero();
-  
   return 0;
 }
 

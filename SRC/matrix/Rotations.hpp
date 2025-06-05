@@ -155,7 +155,6 @@ CayleyFromVersor(const Versor &q)
   const double q0 = q.scalar;
 
   Vector3D w;
-
   for (int i = 0; i < 3; i++)
     w[i] = 2.0 * q.vector[i]/q0;
 
@@ -268,7 +267,7 @@ VersorFromMatrix(const Matrix3D &R)
       a = R(i,i);
 
   if (a == trR) {
-    q.scalar = sqrt(1 + a)*0.5;
+    q.scalar = std::sqrt(1.0 + a)*0.5;
 
     for (int i = 0; i < 3; i++) {
       int j = (i+1)%3;
@@ -282,10 +281,10 @@ VersorFromMatrix(const Matrix3D &R)
         int j = (i+1)%3;
         int k = (i+2)%3;
 
-        q.vector[i] = sqrt(a*0.5 + (1 - trR)/4.0);
-        q.scalar    = (R(k,j) - R(j,k))/(4*q.vector[i]);
-        q.vector[j] = (R(j,i) + R(i,j))/(4*q.vector[i]);
-        q.vector[k] = (R(k,i) + R(i,k))/(4*q.vector[i]);
+        q.vector[i] = sqrt(a*0.5 + (1.0 - trR)/4.0);
+        q.scalar    = (R(k,j) - R(j,k))/(4.0*q.vector[i]);
+        q.vector[j] = (R(j,i) + R(i,j))/(4.0*q.vector[i]);
+        q.vector[k] = (R(k,i) + R(i,k))/(4.0*q.vector[i]);
       }
   }
   return q;
@@ -304,10 +303,10 @@ ExpSO3(const Vector3D &theta)
   double a[4];
   GibSO3(theta, a);
 
-  // Form 3x3 skew-symmetric matrix Th from axial vector th
-  const Matrix3D Theta = Hat(theta);
-
-  return Eye3 + a[1]*Theta + a[2]*Theta*Theta;
+  Matrix3D R = Eye3;
+  R.addSpin(theta, a[1]);
+  R.addSpinSquare(theta, a[2]);
+  return R;
 }
 
 
@@ -320,7 +319,7 @@ CaySO3(const Vector3D &cayley)
   //
   //===--------------------------------------------------------------------===//
 
-  const double c = 1.0/(1 + cayley.dot(cayley)/4.0);
+  const double c = 1.0/(1.0 + cayley.dot(cayley)/4.0);
 
   Matrix3D R;
   R.zero();
@@ -404,7 +403,6 @@ dExpSO3(const Vector3D &v)
    .addTensorProduct(v, v, a[3]);
 
   return T;
-
 }
 
 
@@ -500,11 +498,6 @@ LogSO3(const Matrix3D &R)
   // Parameters
   //   R       (3x3)   Rotation (proper orthogonal) matrix.
   //
-  // Remarks
-  //
-  // - Does not check if input is really a rotation.
-  // - The angle corresponding to the returned vector is always in the interval [0,pi].
-  //
   //
   // References
   // 1. Nurlanov Z (2021) Exploring SO(3) logarithmic map: degeneracies and 
@@ -567,15 +560,17 @@ dLogSO3(const Vector3D &v, double* a=nullptr)
 // function by Claudio Perez                                                            2023
 // -----------------------------------------------------------------------------------------
 //
-  constexpr double tol = 1/20;
+  constexpr double tol = 1./20.;
 
-  Matrix3D Sv = Hat(v);
 
   double angle = v.norm();
-//if (abs(angle) > M_PI/1.01) {
-//  v = v - 2*v/angle*floor(angle + M_PI)/2;
-//  angle = v.norm();
-//}
+  Vector3D u = v;
+  if (abs(angle) > M_PI/1.01) {
+    u -= 2.0*v/angle*double(floor(angle + M_PI))/2.0;
+    angle = u.norm();
+  }
+
+  Matrix3D Sv = Hat(u);
 
   double angle2 = angle*angle;
   double angle3 = angle*angle2;
@@ -593,19 +588,20 @@ dLogSO3(const Vector3D &v, double* a=nullptr)
 }
 
 inline Matrix3D 
-ddLogSO3(const Vector3D& th, const Vector3D& v)
+ddLogSO3(const Vector3D& u, const Vector3D& v)
 {
 // =========================================================================================
 // function by Claudio Perez                                                            2023
 // -----------------------------------------------------------------------------------------
 
   constexpr double tol = 1./20.;
-  double angle = th.norm();
+  double angle = u.norm();
 
-//if (fabs(angle) > M_PI/1.01) {
-//  v = v - 2*v/angle*floor(angle + M_PI)/2;
-//  angle = v.norm();
-//}
+  Vector3D th = u;
+  if (abs(angle) > M_PI/1.01) {
+    th -= 2.0*u/angle*double(floor(angle + M_PI))/2.0;
+    angle = th.norm();
+  }
 
   double angle2 = angle*angle;
   double angle3 = angle*angle2;
@@ -615,8 +611,8 @@ ddLogSO3(const Vector3D& th, const Vector3D& v)
 
   double eta, mu;
   if (angle < tol) {
-    eta = 1/12. + angle2/720. + angle4/30240. + angle6/1209600.;
-    mu  = 1/360. + angle2/7560. + angle4/201600. + angle6/5987520.;
+    eta = 1./12. + angle2/720. + angle4/30240. + angle6/1209600.;
+    mu  = 1./360. + angle2/7560. + angle4/201600. + angle6/5987520.;
 
   } else {
     double an2 = angle/2.;
@@ -624,13 +620,47 @@ ddLogSO3(const Vector3D& th, const Vector3D& v)
     double cs  = std::cos(an2);
 
     eta = (sn - angle2*cs)/(angle2*sn);
-    mu  = (angle*(angle + 2.*sn*cs) - 8*sn*sn)/(4*angle4*sn*sn);
+    mu  = (angle*(angle + 2.*sn*cs) - 8.*sn*sn)/(4.*angle4*sn*sn);
   }
 
   Matrix3D St2 = Hat(th);
   St2 = St2*St2;
-  Matrix3D dH  = -0.5*Hat(v) + eta*(Eye3*th.dot(v) + th.bun(v) - 2.*v.bun(th)) + mu*St2*v.bun(th);
+  Matrix3D dH{}; // -0.5*Hat(v) + eta*(Eye3*th.dot(v) + th.bun(v) - 2.*v.bun(th)) + mu*St2*v.bun(th);
+  dH.addSpin(v, -0.5);  
+  dH.addDiagonal( eta*th.dot(v));
+  dH.addTensorProduct(th, v, eta);
+  dH.addTensorProduct(v, th, -2.0*eta);
+  dH += mu*St2*v.bun(th);
 
   return dH*dLogSO3(th);
 }
 
+#if 0
+
+class Align {
+public:
+  Align(Vector3D& original, Vector3D& target)
+  : original(original), target(target)
+  {
+  }
+
+  // Align a vector to another vector using the exponential map
+  static Vector3D
+  rot(const Vector3D &v, const Vector3D &target)
+  {
+    // e3 = r3 - (e1 + r1)*((r3^e1)*0.5);
+    // e2 = r2 - (e1 + r1)*((r2^e1)*0.5);
+    Vector3D axis = v.cross(target);
+    double angle = std::acos(v.dot(target)/(v.norm()*target.norm()));
+
+    if (angle < 1e-10) return v;
+
+    return ExpSO3(axis*angle)*v;
+  }
+
+  private:
+  Vector3D original;
+  Vector3D target;
+};
+
+#endif

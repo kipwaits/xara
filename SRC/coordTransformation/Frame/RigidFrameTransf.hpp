@@ -53,6 +53,7 @@ public:
 
     virtual VectorND<nn*ndf> getStateVariation() final;
     virtual Vector3D getNodePosition(int tag) final;
+    virtual Versor   getNodeRotation(int tag) final;
     virtual Vector3D getNodeRotationLogarithm(int tag) final;
 
     virtual VectorND<nn*ndf>        pushResponse(VectorND<nn*ndf>&pl) override final;
@@ -137,7 +138,7 @@ private:
 
     std::array<Vector3D, nn> *offsets;
     int offset_flags;
-
+    Matrix3D R0;
     Vector3D xi, xj, vz;
     double L;           // undeformed element length
 

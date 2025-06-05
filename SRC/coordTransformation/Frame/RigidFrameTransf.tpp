@@ -8,8 +8,7 @@
 //
 // Description: This file contains the implementation for the
 // RigidFrameTransf class. RigidFrameTransf is a nonlinear
-// transformation for a space frame between the global
-// and basic coordinate systems
+// transformation for a space frame
 //
 // Written: cmp
 // Created: 04/2025
@@ -40,7 +39,8 @@ RigidFrameTransf<nn,ndf,BasisT>::RigidFrameTransf(int tag,
     offset_flags(offset_flags),
     basis{nodes, vecxz}
 {
-
+  R0.zero();
+  R0.addDiagonal(1.0);
   double nz = vecxz.norm();
   for (int i=0; i<3; i++)
     vz[i] = vecxz[i]/nz;
@@ -101,6 +101,7 @@ RigidFrameTransf<nn,ndf,BasisT>::initialize(std::array<Node*, nn>& new_nodes)
   if ((error = this->computeElemtLengthAndOrient()))
     return error;
 
+  R0 = basis.getRotation();
   return 0;
 }
 
@@ -178,12 +179,18 @@ RigidFrameTransf<nn,ndf,BasisT>::update()
   Matrix3D R = basis.getRotation();
   for (int i=0; i<nn; i++) {
     Versor q = nodes[i]->getTrialRotation();
-    ur[i] = LogSO3(R^MatrixFromVersor(q));
+    ur[i] = LogSO3(R^(MatrixFromVersor(q)*R0));
   }
 
   return 0;
 }
 
+template <int nn, int ndf, typename BasisT>
+Versor
+RigidFrameTransf<nn,ndf,BasisT>::getNodeRotation(int tag)
+{
+  return nodes[tag]->getTrialRotation();
+}
 
 template <int nn, int ndf, typename BasisT>
 VectorND<nn*ndf> 
@@ -195,7 +202,7 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
 
   constexpr static int N = nn * ndf;
 
-  // Initialize ul = ug
+
   VectorND<N> ul = ug;
 
   // (1)
@@ -208,7 +215,7 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
         const int j = i * ndf;
         Vector3D w {ul[j+3],ul[j+4],ul[j+5]};
 
-        ul.assemble(j, offsets[i].cross(w), -1.0);
+        ul.assemble(j, (R*offsets[i]).cross(w), -1.0);
       }
     }
 
@@ -220,34 +227,14 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
     ul.insert(j+3, R^Vector3D{ul[j+3], ul[j+4], ul[j+5]}, 1.0);
   }
 
-  double Ln = basis.getLength();
   {
     Vector3D wr = basis.getRotationVariation(ndf, &ul[0]);
     Vector3D dc = basis.getPositionVariation(ndf, &ul[0]);
-    // Vector3D c  = basis.getPosition();
 
     for (int i=0; i<nn; i++) {
-
-      #if 1
       Vector3D ui = this->getNodePosition(i);
-      // ui -= c;
       ul.assemble(i*ndf+0, dc, -1.0);
       ul.assemble(i*ndf+0, ui.cross(wr), 1.0);
-      #else
-      int j = i * ndf;
-      Vector3D xi = {double(i)/double(nn-1)*Ln, 0, 0}; // R^(nodes[i]->getCrds()); // 
-      // xi += ui;
-      // xi -= c;
-      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
-
-      ul.assemble(i*ndf+0, dc, -1.0);
-      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
-      ul.assemble(i*ndf+0,  c.cross(wr), -1.0);
-      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
-      ul.assemble(i*ndf+0, DR^(nodes[i]->getCrds()), 1.0);
-      opserr << "u[" << i << "] = " << Vector(ul.template extract<3>(j));
-      ul.assemble(i*ndf+0, xi.cross(wr), 1.0);
-      #endif
       ul.assemble(i*ndf+3, wr, -1.0);
     }
   }
@@ -266,7 +253,7 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
     }
 
   // (5) Logarithm of rotations
-  if (0) { // !(offset_flags & LogIter)) {
+  if (1) { // !(offset_flags & LogIter)) {
     for (int i=0; i<nn; i++) {
       const int j = i * ndf+3;
       Vector3D v {ul[j+0], ul[j+1], ul[j+2]};
@@ -325,9 +312,9 @@ RigidFrameTransf<nn,ndf,BasisT>::pushResponse(VectorND<nn*ndf>&p)
   VectorND<nn*ndf> pa = p;
 
   // 1) Logarithm
-  if (0) { // !(offset_flags & LogIter)) {
+  if (1) { // !(offset_flags & LogIter)) {
     for (int i=0; i<nn; i++) {
-      const int j = i * ndf+3;
+      const int j = i*ndf + 3;
       Vector3D m {p[j+0], p[j+1], p[j+2]};
       pa.insert(j, dLogSO3(ur[i])^m, 1.0);
     }
@@ -350,13 +337,14 @@ RigidFrameTransf<nn,ndf,BasisT>::pushResponse(MatrixND<nn*ndf,nn*ndf>&kb, const 
   MatrixND<nn*ndf,nn*ndf> Kb = kb;
   VectorND<nn*ndf> p = pb;
 
-  if (0) {//!(offset_flags & LogIter)) {
+  if (1) {//!(offset_flags & LogIter)) {
     for (int i=0; i<nn; i++) {
       Vector3D m{pb[i*ndf+3], pb[i*ndf+4], pb[i*ndf+5]};
       const Matrix3D Ai = dLogSO3(ur[i]);
       p.insert(i*ndf+3, Ai^m, 1.0);
 
       Matrix3D kg = ddLogSO3(ur[i], m);
+
       for (int j=0; j<nn; j++) {
         const Matrix3D Aj = dLogSO3(ur[j]);
         // loop over 3x3 blocks for n and m

@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Functions related to exponential coordinates on SO(3). The implementation
@@ -14,6 +16,7 @@
 //     Transformations of Finite Elements" 
 //     Int. J. Numer. Meth. Engrg. https://doi.org/10.1002/nme.7506
 //
+//===----------------------------------------------------------------------===//
 #pragma once
 
 #include <cmath>
@@ -38,8 +41,6 @@ Vee(const Matrix3D &X)
 {
 //===----------------------------------------------------------------------===//
 // Return the axial vector x of the given skew-symmetric 3x3 matrix X.
-// ---------------------------------------------------------------------------
-// Written: cmp                                                           2023
 //===----------------------------------------------------------------------===//
   return {X(2,1), X(0,2), X(1,0)};
 }
@@ -138,9 +139,9 @@ GibSO3(const Vector3D &vec, double *a, double *b=nullptr, double *c=nullptr)
       b[3] = ( 3*sn - 2*angle -  angle*cs )/angle5;    
     }
     if (c != nullptr) {
-      c[1] = (3*sn - angle2*sn - 3*angle*cs)/(angle5);
-      c[2] = (8 - 8*cs - 5*angle*sn + angle2*cs)/(angle5*angle);
-      c[3] = (8*angle + 7*angle*cs + angle2*sn - 15*sn)/(angle5*angle2);
+      c[1] = (3.*sn - angle2*sn - 3.*angle*cs)/(angle5);
+      c[2] = (8. - 8.*cs - 5.*angle*sn + angle2*cs)/(angle5*angle);
+      c[3] = (8.*angle + 7.*angle*cs + angle2*sn - 15.*sn)/(angle5*angle2);
     }
   }
 }
@@ -165,31 +166,32 @@ CayleyFromVersor(const Versor &q)
 static inline Versor
 VersorProduct(const Versor &qa, const Versor &qb)
 {
-    const double  qa0 = qa.vector[0],
-                  qa1 = qa.vector[1],
-                  qa2 = qa.vector[2],
-                  qa3 = qa.scalar,
-                  //
-                  qb0 = qb.vector[0],
-                  qb1 = qb.vector[1],
-                  qb2 = qb.vector[2],
-                  qb3 = qb.scalar;
-    // Calculate the dot product qa.qb
-    const double qaTqb = qa0*qb0 + qa1*qb1 + qa2*qb2;
+  const double  qa0 = qa.vector[0],
+                qa1 = qa.vector[1],
+                qa2 = qa.vector[2],
+                qa3 = qa.scalar,
+                //
+                qb0 = qb.vector[0],
+                qb1 = qb.vector[1],
+                qb2 = qb.vector[2],
+                qb3 = qb.scalar;
 
-    // Calculate the cross-product qa x qb
-    const double
-      qaxqb0 = qa1*qb2 - qa2*qb1,
-      qaxqb1 = qa2*qb0 - qa0*qb2,
-      qaxqb2 = qa0*qb1 - qa1*qb0;
+  // Dot product qa.qb
+  const double qaTqb = qa0*qb0 + qa1*qb1 + qa2*qb2;
 
-    // Calculate the quaternion product
-    Versor q12;
-    q12.vector[0] = qa3*qb0 + qb3*qa0 - qaxqb0;
-    q12.vector[1] = qa3*qb1 + qb3*qa1 - qaxqb1;
-    q12.vector[2] = qa3*qb2 + qb3*qa2 - qaxqb2;
-    q12.scalar = qa3*qb3 - qaTqb;
-    return q12;
+  // Cross-product qa x qb
+  const double
+    qaxqb0 = qa1*qb2 - qa2*qb1,
+    qaxqb1 = qa2*qb0 - qa0*qb2,
+    qaxqb2 = qa0*qb1 - qa1*qb0;
+
+  //
+  Versor q12;
+  q12.vector[0] = qa3*qb0 + qb3*qa0 - qaxqb0;
+  q12.vector[1] = qa3*qb1 + qb3*qa1 - qaxqb1;
+  q12.vector[2] = qa3*qb2 + qb3*qa2 - qaxqb2;
+  q12.scalar = qa3*qb3 - qaTqb;
+  return q12;
 }
 
 
@@ -340,44 +342,44 @@ inline Matrix3D
 TanSO3(const Vector3D &vec, char repr='L')
 {
   //
-  //  Compute right and left differential of the exponential.
+  //  Compute right or left differential of the exponential.
   //
   //===--------------------------------------------------------------------===//
   // function by Claudio Perez                                            2023
   //===--------------------------------------------------------------------===//
-    double a[4];
-    GibSO3(vec, a);
+  double a[4];
+  GibSO3(vec, a);
 
-    Matrix3D T;
+  Matrix3D T;
 
-    // Assemble differential
-    switch (repr) {
-      case 'R':
-        T(0,0)  =         a[1] + a[3]*vec[0]*vec[0];
-        T(0,1)  = -vec[2]*a[2] + a[3]*vec[0]*vec[1];
-        T(0,2)  =  vec[1]*a[2] + a[3]*vec[0]*vec[2];
-        T(1,0)  =  vec[2]*a[2] + a[3]*vec[1]*vec[0];
-        T(1,1)  =         a[1] + a[3]*vec[1]*vec[1];
-        T(1,2)  = -vec[0]*a[2] + a[3]*vec[1]*vec[2];
-        T(2,0)  = -vec[1]*a[2] + a[3]*vec[2]*vec[0];
-        T(2,1)  =  vec[0]*a[2] + a[3]*vec[2]*vec[1];
-        T(2,2)  =         a[1] + a[3]*vec[2]*vec[2];
-        return T;
+  // Assemble differential
+  switch (repr) {
+    case 'R':
+      T(0,0)  =         a[1] + a[3]*vec[0]*vec[0];
+      T(0,1)  = -vec[2]*a[2] + a[3]*vec[0]*vec[1];
+      T(0,2)  =  vec[1]*a[2] + a[3]*vec[0]*vec[2];
+      T(1,0)  =  vec[2]*a[2] + a[3]*vec[1]*vec[0];
+      T(1,1)  =         a[1] + a[3]*vec[1]*vec[1];
+      T(1,2)  = -vec[0]*a[2] + a[3]*vec[1]*vec[2];
+      T(2,0)  = -vec[1]*a[2] + a[3]*vec[2]*vec[0];
+      T(2,1)  =  vec[0]*a[2] + a[3]*vec[2]*vec[1];
+      T(2,2)  =         a[1] + a[3]*vec[2]*vec[2];
+      return T;
 
-      case 'L':
-      default:
-        T(0,0)  =         a[1] + a[3]*vec[0]*vec[0];
-        T(0,1)  =  vec[2]*a[2] + a[3]*vec[1]*vec[0];
-        T(0,2)  = -vec[1]*a[2] + a[3]*vec[2]*vec[0];
-        T(1,0)  = -vec[2]*a[2] + a[3]*vec[0]*vec[1];
-        T(1,1)  =         a[1] + a[3]*vec[1]*vec[1];
-        T(1,2)  =  vec[0]*a[2] + a[3]*vec[2]*vec[1];
-        T(2,0)  =  vec[1]*a[2] + a[3]*vec[0]*vec[2];
-        T(2,1)  = -vec[0]*a[2] + a[3]*vec[1]*vec[2];
-        T(2,2)  =         a[1] + a[3]*vec[2]*vec[2];
-        return T;
+    case 'L':
+    default:
+      T(0,0)  =         a[1] + a[3]*vec[0]*vec[0];
+      T(0,1)  =  vec[2]*a[2] + a[3]*vec[1]*vec[0];
+      T(0,2)  = -vec[1]*a[2] + a[3]*vec[2]*vec[0];
+      T(1,0)  = -vec[2]*a[2] + a[3]*vec[0]*vec[1];
+      T(1,1)  =         a[1] + a[3]*vec[1]*vec[1];
+      T(1,2)  =  vec[0]*a[2] + a[3]*vec[2]*vec[1];
+      T(2,0)  =  vec[1]*a[2] + a[3]*vec[0]*vec[2];
+      T(2,1)  = -vec[0]*a[2] + a[3]*vec[1]*vec[2];
+      T(2,2)  =         a[1] + a[3]*vec[2]*vec[2];
+      return T;
 
-    }
+  }
 }
 
 
@@ -465,17 +467,13 @@ dTanSO3(const Vector3D &v, const Vector3D &p, char repr='L')
   double a[4], b[4];
   GibSO3(v, a, b);
 
-  Matrix3D vxpov = v.cross(p).bun(v);
-
-  Matrix3D Xi;
-  switch (repr) {
-    case 'R':
-      Xi = - a[2]*Hat(p) + a[3]*v.dot(p)*Eye3 + a[3]*v.bun(p)
-           + b[1]*p.bun(v) + b[2]*vxpov + b[3]*v.dot(p)*v.bun(v);
-    case 'L':
-      Xi =   a[2]*Hat(p) + a[3]*v.dot(p)*Eye3 + a[3]*v.bun(p)
-           + b[1]*p.bun(v) - b[2]*vxpov + b[3]*v.dot(p)*v.bun(v);
-  }
+  Matrix3D Xi{};
+  Xi.addSpin(p, a[2]*(repr == 'R' ? -1.0 : 1.0))
+    .addDiagonal(a[3]*v.dot(p))
+    .addTensorProduct(v, p, a[3])
+    .addTensorProduct(p, v, b[1])
+    .addTensorProduct(v.cross(p), v, b[1]*(repr == 'R' ? 1.0 : -1.0))
+    .addTensorProduct(v, v, v.dot(p)*b[2]);
   return Xi;
 }
 
@@ -562,15 +560,12 @@ dLogSO3(const Vector3D &v, double* a=nullptr)
 //
   constexpr double tol = 1./20.;
 
-
   double angle = v.norm();
   Vector3D u = v;
-  if (abs(angle) > M_PI/1.01) {
+  if (abs(angle) > M_PI/1.01) [[unlikely]] {
     u -= 2.0*v/angle*double(floor(angle + M_PI))/2.0;
     angle = u.norm();
   }
-
-  Matrix3D Sv = Hat(u);
 
   double angle2 = angle*angle;
   double angle3 = angle*angle2;
@@ -583,8 +578,12 @@ dLogSO3(const Vector3D &v, double* a=nullptr)
     eta = (1.0 - 0.5*angle*cot(0.5*angle))/angle2;
   else
     eta = 1./12. + angle2/720. + angle4/30240. + angle6/1209600.;
-
-  return Eye3 - 0.5*Sv + eta*Sv*Sv;
+  
+  Matrix3D dH = Eye3;
+  dH.addSpin(u, -0.5);
+  dH.addSpinSquare(u, eta);
+  return dH;
+  // return Eye3 - 0.5*Sv + eta*Sv*Sv;
 }
 
 inline Matrix3D 
@@ -598,7 +597,7 @@ ddLogSO3(const Vector3D& u, const Vector3D& v)
   double angle = u.norm();
 
   Vector3D th = u;
-  if (abs(angle) > M_PI/1.01) {
+  if (abs(angle) > M_PI/1.01) [[unlikely]] {
     th -= 2.0*u/angle*double(floor(angle + M_PI))/2.0;
     angle = th.norm();
   }
@@ -613,8 +612,8 @@ ddLogSO3(const Vector3D& u, const Vector3D& v)
   if (angle < tol) {
     eta = 1./12. + angle2/720. + angle4/30240. + angle6/1209600.;
     mu  = 1./360. + angle2/7560. + angle4/201600. + angle6/5987520.;
-
-  } else {
+  }
+  else {
     double an2 = angle/2.;
     double sn  = std::sin(an2);
     double cs  = std::cos(an2);
@@ -630,7 +629,8 @@ ddLogSO3(const Vector3D& u, const Vector3D& v)
   dH.addDiagonal( eta*th.dot(v));
   dH.addTensorProduct(th, v, eta);
   dH.addTensorProduct(v, th, -2.0*eta);
-  dH += mu*St2*v.bun(th);
+  dH.addMatrixProduct(St2, v.bun(th), mu);;
+  // dH += mu*St2*v.bun(th);
 
   return dH*dLogSO3(th);
 }

@@ -65,9 +65,6 @@ public:
 
     // Sensitivity
     //
-    // const Vector & getBasicDisplFixedGrad();
-    // const Vector & getBasicDisplTotalGrad(int gradNumber);
-    // const Vector &getGlobalResistingForceShapeSensitivity (const Vector &basicForce, const Vector &p0, int grad);
     bool isShapeSensitivity();
     double getLengthGrad();
     double getd1overLdh();
@@ -101,13 +98,6 @@ private:
     }
 
     int computeElemtLengthAndOrient();
-
-    inline VectorND<nn*ndf> 
-    pullVariation(const VectorND<nn*ndf>& ug, 
-                const Matrix3D& R, 
-                const std::array<Vector3D, nn> *offset = nullptr,
-                int offset_flags = 0);
-
 
     template<const Vector& (Node::*Getter)()>
     const Vector3D

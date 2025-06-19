@@ -143,6 +143,7 @@ class FrameSolidSection3d : public FrameSection
       double z;
       double area;
       std::array<std::array<double,3>,nwm> warp{{{0}}};
+      // std::array<double, 3> wmix{{{0}}};
       OpenSees::VectorND<3> r;
     };
     std::shared_ptr<std::vector<FiberData>> fibers;

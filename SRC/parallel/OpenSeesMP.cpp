@@ -68,7 +68,6 @@ Libopenseesmp_Init(Tcl_Interp* interp)
   
   // Initialize process runtime
 
-
   int pid = theMachineBroker->getPID();
   int np  = theMachineBroker->getNP();
 
@@ -126,8 +125,9 @@ Libopenseesmp_Init(Tcl_Interp* interp)
       otherChannel->sendID(0,0,data);
       otherChannel->sendMsg(0,0,msgChar);
     }
-
-  } else {
+  }
+  else {
+    // if not rank 0, we receive the args from rank 0
 
     static ID data(2);    
 
@@ -158,8 +158,9 @@ Libopenseesmp_Init(Tcl_Interp* interp)
 
   // Add machine commands (getPID, getNP, etc);
   Init_MachineRuntime(interp, theMachineBroker);
-  Init_Communication(interp, theMachineBroker);
-  init_g3_tcl_utils(interp);       // Add utility commands (linspace, range, etc.)
+  Init_Communication(interp,  theMachineBroker);
+  // Add utility commands (linspace, range, etc.)
+  init_g3_tcl_utils(interp);
 
   Tcl_CreateCommand(interp, "partition", &doNothing, (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
 

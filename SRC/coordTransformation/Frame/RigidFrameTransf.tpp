@@ -49,6 +49,7 @@ RigidFrameTransf<nn,ndf,BasisT>::RigidFrameTransf(int tag,
   if (offset != nullptr) {
     offsets = new std::array<Vector3D, nn>{};
     *offsets = *offset;
+    basis.setOffsets(offsets);
   }
 }
 
@@ -94,6 +95,8 @@ RigidFrameTransf<nn,ndf,BasisT>::initialize(std::array<Node*, nn>& new_nodes)
       opserr << "invalid pointers to the element nodes\n";
       return -1;
     }
+    // ensure the node is initialized
+    nodes[i]->getTrialRotation();
   }
 
   int error;
@@ -192,30 +195,74 @@ RigidFrameTransf<nn,ndf,BasisT>::getNodeRotation(int tag)
   return nodes[tag]->getTrialRotation();
 }
 
+
 template <int nn, int ndf, typename BasisT>
-VectorND<nn*ndf> 
-RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug, 
-             const Matrix3D& R, 
-             const std::array<Vector3D, nn> *offset,
-             int offset_flags) 
+Vector3D
+RigidFrameTransf<nn,ndf,BasisT>::getNodePosition(int node)
 {
+#if 0
+  const Vector& ug = nodes[node]->getTrialDisp();
+
+  Vector3D u;
+  for (int i=0; i<3; i++)
+    u[i] = ug[i];
+
+  if (offsets != nullptr) [[unlikely]] {
+    u.addVector(1.0, (*offsets)[node], -1.0);
+    u.addVector(1.0, nodes[node]->getTrialRotation().rotate((*offsets)[node]), 1.0);
+  }
+
+  u.addVector(1.0, basis.getPosition(), -1.0);
+#else
+  Vector3D u = this->pullPosition<&Node::getTrialDisp>(node) 
+             - basis.getPosition();
+#endif
+  u += basis.getRotationDelta()^(nodes[node]->getCrds());
+
+  return u;
+}
+
+
+template <int nn, int ndf, typename BasisT>
+Vector3D
+RigidFrameTransf<nn,ndf,BasisT>::getNodeRotationLogarithm(int node)
+{
+  return ur[node];
+}
+
+
+template <int nn, int ndf, typename BasisT>
+VectorND<nn*ndf>
+RigidFrameTransf<nn,ndf,BasisT>::getStateVariation()
+{
+
+  static VectorND<nn*ndf> ul;
+  for (int i=0; i<nn; i++) {
+    const Vector &ddu = nodes[i]->getIncrDeltaDisp();
+    for (int j = 0; j < ndf; j++) {
+      ul[i*ndf+j] = ddu(j);
+    }
+  }
+
+  Matrix3D R = basis.getRotation();
+  // return RigidFrameTransf<nn,ndf,BasisT>::pullVariation(ug, R, offsets, offset_flags);
+
 
   constexpr static int N = nn * ndf;
 
+  // VectorND<N> ul = ug;
 
-  VectorND<N> ul = ug;
-
-  // (1)
+  // (1) Global Offsets
   // Do ui -= ri x wi
   if constexpr (ndf >= 6)
-    if (offset && !(offset_flags&OffsetLocal)) [[unlikely]] {
-      const std::array<Vector3D, nn>& offsets = *offset;
+    if (offsets && !(offset_flags&OffsetLocal)) [[unlikely]] {
+      const std::array<Vector3D, nn>& offset = *offsets;
       for (int i=0; i<nn; i++) {
 
         const int j = i * ndf;
         Vector3D w {ul[j+3],ul[j+4],ul[j+5]};
 
-        ul.assemble(j, (R*offsets[i]).cross(w), -1.0);
+        ul.assemble(j, (R*offset[i]).cross(w), -1.0);
       }
     }
 
@@ -227,6 +274,7 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
     ul.insert(j+3, R^Vector3D{ul[j+3], ul[j+4], ul[j+5]}, 1.0);
   }
 
+  // Isometry
   {
     Vector3D wr = basis.getRotationVariation(ndf, &ul[0]);
     Vector3D dc = basis.getPositionVariation(ndf, &ul[0]);
@@ -241,14 +289,14 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
 
   // 3) Offsets
   if constexpr (ndf >= 6)
-    if (offset && (offset_flags&OffsetLocal)) [[unlikely]] {
-      const std::array<Vector3D, nn>& offsets = *offset;
+    if (offsets && (offset_flags&OffsetLocal)) [[unlikely]] {
+      const std::array<Vector3D, nn>& offset = *offsets;
       for (int i=0; i<nn; i++) {
 
         const int j = i * ndf;
         Vector3D w {ul[j+3],ul[j+4],ul[j+5]};
 
-        ul.assemble(j, offsets[i].cross(w), -1.0);
+        ul.assemble(j, offset[i].cross(w), -1.0);
       }
     }
 
@@ -263,44 +311,6 @@ RigidFrameTransf<nn,ndf,BasisT>::pullVariation(const VectorND<nn*ndf>& ug,
 
   return ul;
 }
-
-template <int nn, int ndf, typename BasisT>
-VectorND<nn*ndf>
-RigidFrameTransf<nn,ndf,BasisT>::getStateVariation()
-{
-
-  static VectorND<nn*ndf> ug;
-  for (int i=0; i<nn; i++) {
-    const Vector &ddu = nodes[i]->getIncrDeltaDisp();
-    for (int j = 0; j < ndf; j++) {
-      ug[i*ndf+j] = ddu(j);
-    }
-  }
-
-  Matrix3D R = basis.getRotation();
-  return RigidFrameTransf<nn,ndf,BasisT>::pullVariation(ug, R, offsets, offset_flags);
-}
-
-template <int nn, int ndf, typename BasisT>
-Vector3D
-RigidFrameTransf<nn,ndf,BasisT>::getNodePosition(int node)
-{
-  Vector3D v = this->pullPosition<&Node::getTrialDisp>(node) 
-             - basis.getPosition();
-
-  v += basis.getRotationDelta()^(nodes[node]->getCrds());
-
-  return v;
-}
-
-
-template <int nn, int ndf, typename BasisT>
-Vector3D
-RigidFrameTransf<nn,ndf,BasisT>::getNodeRotationLogarithm(int node)
-{
-  return ur[node];
-}
-
 
 //
 // Push
@@ -350,6 +360,9 @@ RigidFrameTransf<nn,ndf,BasisT>::pushResponse(MatrixND<nn*ndf,nn*ndf>&kb, const 
         // loop over 3x3 blocks for n and m
         for (int k=0; k<2; k++) {
           for (int l=0; l<2; l++) {
+            if (k == 0 && l == 0)
+              continue;
+
             Matrix3D Kab {{
               {Kb(i*ndf+3*k+0, j*ndf+3*l  ), Kb(i*ndf+3*k+1, j*ndf+3*l  ), Kb(i*ndf+3*k+2, j*ndf+3*l  )},
               {Kb(i*ndf+3*k+0, j*ndf+3*l+1), Kb(i*ndf+3*k+1, j*ndf+3*l+1), Kb(i*ndf+3*k+2, j*ndf+3*l+1)},
@@ -471,7 +484,6 @@ RigidFrameTransf<nn,ndf,BasisT>::Print(OPS_Stream &s, int flag)
       }
       s << "]";
     }
-
     s << "}";
 
     return;

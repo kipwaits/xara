@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Description: This file contains the implementation for the
@@ -388,7 +390,7 @@ LinearFrameTransf<nn,ndf>::pushResponse(VectorND<nn*ndf>&p)
   constexpr Vector3D iv{1, 0, 0};
   constexpr Matrix3D ix = Hat(iv);
 
-  // 1) Sum of moments: m = sum_i mi + sum_i (xi x ni)
+  // 1.1) Sum of moments: m = sum_i mi + sum_i (xi x ni)
   Vector3D m{};
   for (int i=0; i<nn; i++) {
     // m += mi
@@ -400,13 +402,13 @@ LinearFrameTransf<nn,ndf>::pushResponse(VectorND<nn*ndf>&p)
   }
   const Vector3D ixm = ix*m;
 
-  // 2) Adjust force part
+  // 1.2) Adjust force part
   for (int i=0; i<nn; i++) {
     pa.assemble(i*ndf,  ixm,  (i? 1.0:-1.0)/L);
     pa[i*ndf+3] += m[0]*(i? -1:1)*0.5;
   }
 
-  // 3) Rotate and do joint offsets
+  // 2) Rotate and do joint offsets
   auto pg = this->FrameTransform<nn,ndf>::pushConstant(pa);
   return pg;
 }
@@ -426,12 +428,12 @@ LinearFrameTransf<nn,ndf>::pushResponse(MatrixND<nn*ndf,nn*ndf>&kb, const Vector
   Gb.template insert<0, 3>(ioi, 0.5);
   for (int a = 0; a<nn; a++) {
     for (int b = 0; b<nn; b++) {
-      // TODO(nn>2): Interpolate coordinate?
+      // TODO(nn>2): Interpolate coordinate
       if (b == 0)
         Gb.template insert<0,0>(ix, -1/L);
       else if (b == nn-1)
         Gb.template insert<0,0>(ix,  1/L);
-      // TODO(nn>2): Interpolate coordinate?
+      // TODO(nn>2): Interpolate coordinate
       A.assemble(ix*Gb, a*ndf  , b*ndf,  double(a)/double(nn-1)*L);
       A.assemble(   Gb, a*ndf+3, b*ndf, -1.0);
     }

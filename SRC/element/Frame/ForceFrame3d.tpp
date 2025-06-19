@@ -452,7 +452,12 @@ ForceFrame3d<NIP,nsr,nwm>::update()
   double jsx = 1.0 / L;
 
   THREAD_LOCAL VectorND<NBV> dv;
-  dv = basic_system->getBasicIncrDeltaDisp();
+  {
+    const Vector& dvb = basic_system->getBasicIncrDeltaDisp();
+    for (int i=0; i<6; i++) {
+      dv[i] = dvb[i];
+    }
+  }
 
   //
   //
@@ -463,20 +468,23 @@ ForceFrame3d<NIP,nsr,nwm>::update()
   THREAD_LOCAL VectorND<NBV> Dv;
   {
     const Vector& v = basic_system->getBasicTrialDisp();
-    Dv  = v;
-    Dv -= dv;
+    for (int i=0; i<6; i++) {
+      Dv[i] = v[i] - dv[i];
+    }
+    // Dv  = v;
+    // Dv -= dv;
   }
-
-  for (int i=0; i<nwm; i++) {
+  {
     Node** nodes = this->getNodePtrs();
-    for (int j=0; j<2; j++) {
-      const Vector& uj  = nodes[j]->getTrialDisp();
-      const Vector& duj = nodes[j]->getIncrDeltaDisp();
-      dv[NNW+i*nwm+j] = duj[6+i];
-      Dv[NNW+i*nwm+j] = uj[6+i] - duj[6+i];
+    for (int i=0; i<nwm; i++) {
+      for (int j=0; j<2; j++) {
+        const Vector& uj  = nodes[j]->getTrialDisp();
+        const Vector& duj = nodes[j]->getIncrDeltaDisp();
+        dv[NNW+i*nwm+j] = duj[6+i];
+        Dv[NNW+i*nwm+j] = uj[6+i] - duj[6+i];
+      }
     }
   }
-
   THREAD_LOCAL VectorND<NBV> dvToDo,
                              dv_trial;
 
@@ -486,7 +494,6 @@ ForceFrame3d<NIP,nsr,nwm>::update()
   static constexpr double factor = 10.0;
   double dW;             // section strain energy (work) norm
   double dW0  = 0.0;
-
 
 
   //

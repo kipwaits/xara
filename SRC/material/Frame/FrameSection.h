@@ -201,10 +201,8 @@ FrameSection::getTangent(State state) {
       for (int i=0; i<n; i++)
         for (int j=0; j<m; j++)
           if (layout(j) == scheme[i]) {
-            // if (std::fabs(ks(j,sect_bishear[0])) > 1e-12)
-              kout(i,e.m[0]) += ks(j,sect_bishear[0]);
-            // if (std::fabs(ks(sect_bishear[0],j)) > 1e-12)
-              kout(e.m[0],i) += ks(sect_bishear[0],j);
+            kout(i,e.m[0]) += ks(j,sect_bishear[0]);
+            kout(e.m[0],i) += ks(sect_bishear[0],j);
           }
     }
 
@@ -263,7 +261,6 @@ FrameSection::setTrialState(const OpenSees::VectorND<n>& e) {
   // optimized out by the compiler, however this might be 
   // optimistic
   //
-  if (l.v[0] == -1) {
     for (int j=0; j<m; j++)
       switch (layout(j)) {
         case FrameStress::Bishear:

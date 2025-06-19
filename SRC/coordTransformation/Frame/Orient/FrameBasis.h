@@ -45,7 +45,12 @@ class RankineBasis : public FrameBasis
 public:
   RankineBasis(std::array<Node*,nn>& nodes, const Vector3D& vecxz)
   : nodes{nodes}, vz(vecxz), Xc{}, c{}, R{} {
-  };
+  }
+
+  void
+  setOffsets(std::array<Vector3D, nn>* offsets) {
+    this->offsets = offsets;
+  }
 
   virtual int 
   initialize() {
@@ -107,6 +112,12 @@ public:
         for (int k = 0; k < 3; k++)
           e1[k] += uJ(k) - uI(k);
 
+        if (offsets != nullptr) [[unlikely]] {
+          e1.addVector(1.0, (*offsets)[   0],  1.0);
+          e1.addVector(1.0, nodes[0]->getTrialRotation().rotate((*offsets)[0]), -1.0);
+          e1.addVector(1.0, (*offsets)[nn-1], -1.0);
+          e1.addVector(1.0, nodes[nn-1]->getTrialRotation().rotate((*offsets)[nn-1]), 1.0);
+        }
         // Calculate the deformed length
         Ln = e1.norm();
 
@@ -164,7 +175,6 @@ public:
         // opserr << Vector(r1-e1);
         // R[pres] = Rbar^ExpSO3(v);
       }
-
 #else 
       Vector3D e2 = vz.cross(e1);
 #endif
@@ -172,10 +182,11 @@ public:
     }
 
     Vector3D uc = nodes[ic]->getTrialDisp();
-    // Ri = MatrixFromVersor(nodes[ic]->getTrialRotation());
-    // Ri.addDiagonal(-1.0);
-    // uc += Ri*offset[ic];
-    Vector3D X = nodes[ic]->getCrds(); // R[init]*c[init];
+    if (offsets != nullptr) {
+      uc.addVector(1.0, (*offsets)[ic], -1.0);
+      uc.addVector(1.0, nodes[ic]->getTrialRotation().rotate((*offsets)[ic]), 1.0);
+    }
+    Vector3D X = nodes[ic]->getCrds();
     c[pres] = R[pres]^(X + uc);
     return 0;
   };
@@ -262,6 +273,7 @@ private:
   Vector3D c[3];
   Matrix3D dR;
   std::array<Node*,nn>& nodes;
+  std::array<Vector3D, nn>* offsets = nullptr; // offsets
 };
 
 } // namespace OpenSees

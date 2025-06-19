@@ -1,3 +1,11 @@
+//===----------------------------------------------------------------------===//
+//
+//                                   xara
+//
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
+//===----------------------------------------------------------------------===//
+//
 #pragma once
 #include <cmath>
 #include <VectorND.h>
@@ -71,15 +79,6 @@ struct Versor {
 
         return q;
     }
-
-//   inline Versor &operator*= (const Versor& b)
-//   {
-//       vector[0] = scalar*b.vector[0] + vector[0]*b.scalar + vector[1]*b.vector[2] - vector[2]*b.vector[1];
-//       vector[1] = scalar*b.vector[1] + vector[1]*b.scalar + vector[2]*b.vector[0] - vector[0]*b.vector[2];
-//       vector[2] = scalar*b.vector[2] + vector[2]*b.scalar + vector[0]*b.vector[1] - vector[1]*b.vector[0];
-//       scalar =    scalar*b.scalar - vector[0]*b.vector[0] - vector[1]*b.vector[1] - vector[2]*b.vector[2];
-//       return *this;
-//   }
 };
 
 #if 1

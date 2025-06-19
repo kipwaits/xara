@@ -319,7 +319,7 @@ CubicFrame3d<shear,nwm>::update()
     }
 
     // Set the section deformations
-    err += theSections[i]->setTrialState<nsr,scheme>(e);
+    err += theSections[i]->template setTrialState<nsr,scheme>(e);
   }
 
   return err;
@@ -351,8 +351,8 @@ CubicFrame3d<shear,nwm>::getTangentStiff()
     double phiy = phiys[i];
 
     // Get the section tangent stiffness and stress resultant
-    MatrixND<nsr,nsr> ks = theSections[i]->getTangent<nsr,scheme>(State::Pres);
-    const VectorND<nsr> s = theSections[i]->getResultant<nsr,scheme>();
+    MatrixND<nsr,nsr> ks = theSections[i]->template getTangent<nsr,scheme>(State::Pres);
+    const VectorND<nsr> s = theSections[i]->template getResultant<nsr,scheme>();
     
     // Perform numerical integration
     double wti = wt[i] * jsx;
@@ -713,7 +713,7 @@ CubicFrame3d<shear,nwm>::getResistingForce()
     double phiy = phiys[i];
 
     // Get section stress resultant
-    const VectorND<nsr> s  = theSections[i]->getResultant<nsr,scheme>();
+    const VectorND<nsr> s  = theSections[i]->template getResultant<nsr,scheme>();
 
     // Perform numerical integration on internal force
     //q.addMatrixTransposeVector(1.0, *B, s, wts(i));
@@ -1398,8 +1398,8 @@ CubicFrame3d<shear,nwm>::getResistingForceSensitivity(int gradNumber)
       double wti  = wt[i];
 
       // Get the section tangent stiffness and stress resultant
-      const MatrixND<nsr,nsr> ks = theSections[i]->getTangent<nsr,scheme>(State::Pres);
-      const VectorND<nsr>     s  = theSections[i]->getResultant<nsr,scheme>();
+      const MatrixND<nsr,nsr> ks = theSections[i]->template getTangent<nsr,scheme>(State::Pres);
+      const VectorND<nsr>     s  = theSections[i]->template getResultant<nsr,scheme>();
 
       MatrixND<nsr,nq> ka;
       ka.zero();

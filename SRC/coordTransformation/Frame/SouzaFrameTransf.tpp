@@ -1,15 +1,15 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Description: This file contains the implementation for the
 // SouzaFrameTransf class. SouzaFrameTransf is a Corotational
 // transformation for a spatial frame element between the global
-// and basic coordinate systems. The formulation is derived from
-// Crisfield (1991) and employs a heuristic approximation to the
-// logarithm on SO(3).
+// and basic coordinate systems.
 //
 // Written: Claudio Perez
 // Created: 05/2024
@@ -254,17 +254,6 @@ SouzaFrameTransf<nn,ndf>::getNodePosition(int tag)
   for (int i=0; i<3; i++)
     u[i] = ul[tag*ndf+i];
   return u;
-
-  // Vector3D v;
-  // const Vector& u = nodes[tag]->getTrialDisp();
-  // for (int i=0; i<3; i++)
-  //   v[i] = u[i];
-
-  // if (offsets != nullptr)
-  //   v += Q_pres[tag].rotate((*offsets)[tag]);
-
-  // Matrix3D R = crs.getRotation();
-  // return R^v;
 }
 
 template <int nn, int ndf>

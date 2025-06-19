@@ -161,6 +161,7 @@ partitionModel(PartitionRuntime& part, int eleTag)
     theSub->setDomainDecompAnalysis(*theSubAnalysis);
   }
 #endif
+
   return result;
 }
 

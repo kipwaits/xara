@@ -261,6 +261,7 @@ FrameSection::setTrialState(const OpenSees::VectorND<n>& e) {
   // optimized out by the compiler, however this might be 
   // optimistic
   //
+  if constexpr (l.v[0] == -1) {
     for (int j=0; j<m; j++)
       switch (layout(j)) {
         case FrameStress::Bishear:

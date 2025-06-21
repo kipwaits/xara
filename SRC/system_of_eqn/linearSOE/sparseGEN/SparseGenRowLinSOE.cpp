@@ -184,7 +184,7 @@ SparseGenRowLinSOE::setSize(Graph& theGraph)
     for (int a = 0; a < size; a++) {
 
       theVertex = theGraph.getVertexPtr(a);
-      if (theVertex == 0) {
+      if (theVertex == nullptr) {
         // opserr << "WARNING:SparseGenRowLinSOE::setSize :";
         // opserr << " vertex " << a << " not in graph! - size set to 0\n";
         size = 0;
@@ -262,9 +262,9 @@ SparseGenRowLinSOE::addA(const Matrix& m, const ID& id, double fact)
                 k = endRowLoc;
               }
           }
-        } // for j
+        }
       }
-    } // for i
+    }
   } else {
     for (int i = 0; i < idSize; i++) {
       int row = id(i);

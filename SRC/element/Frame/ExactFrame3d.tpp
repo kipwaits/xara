@@ -111,7 +111,7 @@ template<std::size_t nen, int nwm>
 ExactFrame3d<nen, nwm>::ExactFrame3d(int tag,
                                      std::array<int, nen>& nodes,
                                      FrameSection* section[nen - 1],
-                                     FrameTransform3d& transform)
+                                     CrdTransf& transform)
  : FiniteElement<nen, ndm, ndf>(tag, 0, nodes),
    xn{0},
    jxs(0),

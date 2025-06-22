@@ -126,6 +126,7 @@ BasicFrame3d::addLoad(ElementalLoad *theLoad, double loadFactor)
     double L2 = 1.0/(L*L);
     double a2 = a*a;
     double b2 = b*b;
+  
     q0[0] -= N*a/L;
     double M1 = -a * b2 * Py * L2;
     double M2 = a2 *  b * Py * L2;
@@ -138,45 +139,45 @@ BasicFrame3d::addLoad(ElementalLoad *theLoad, double loadFactor)
   }
 
   else if (type == LOAD_TAG_Beam3dPartialUniformLoad) {
-      const double wa = data(2) * loadFactor;  // Axial
-      const double wy = data(0) * loadFactor;  // Transverse
-      const double wz = data(1) * loadFactor;  // Transverse
-      const double a  = data(3) * L;
-      const double b  = data(4) * L;
-      const double c  = 0.5 * (b + a);
-      double cOverL = c / L;
+    const double wa = data(2) * loadFactor;  // Axial
+    const double wy = data(0) * loadFactor;  // Transverse
+    const double wz = data(1) * loadFactor;  // Transverse
+    const double a  = data(3) * L;
+    const double b  = data(4) * L;
+    const double c  = 0.5 * (b + a);
+    double cOverL = c / L;
 
-      double P  = wa * (b - a);
-      double Fy = wy * (b - a);
-      double Fz = wz * (b - a);
+    double P  = wa * (b - a);
+    double Fy = wy * (b - a);
+    double Fz = wz * (b - a);
 
-      // Reactions in basic system
-      p0[0] -= P;
-      double V1, V2;
-      V1 = Fy * (1.0 - c/L);
-      V2 = Fy * c/L;
-      p0[1] -= V1;
-      p0[2] -= V2;
-      V1 = Fz * (1.0 - c/L);
-      V2 = Fz * cOverL;
-      p0[3] -= V1;
-      p0[4] -= V2;
+    // Reactions in basic system
+    p0[0] -= P;
+    double V1, V2;
+    V1 = Fy * (1.0 - c/L);
+    V2 = Fy * c/L;
+    p0[1] -= V1;
+    p0[2] -= V2;
+    V1 = Fz * (1.0 - c/L);
+    V2 = Fz * cOverL;
+    p0[3] -= V1;
+    p0[4] -= V2;
 
-      // Fixed end forces in basic system
-      q0[0] -= P * cOverL;
-      double beta2 = (1 - cOverL) * (1 - cOverL);
-      double alfa2 = (cOverL) * (cOverL);
-      double gamma2 = (b - a) / L;
-      gamma2 *= gamma2;
+    // Fixed end forces in basic system
+    q0[0] -= P * cOverL;
+    double beta2 = (1 - cOverL) * (1 - cOverL);
+    double alfa2 = (cOverL) * (cOverL);
+    double gamma2 = (b - a) / L;
+    gamma2 *= gamma2;
 
-      double M1 = -wy * (b - a) * (c * beta2 + gamma2 / 12.0 * (L - 3 * (L - c)));
-      double M2 =  wy * (b - a) * ((L - c) * alfa2 + gamma2 / 12.0 * (L - 3 * c));
-      q0[1] += M1;
-      q0[2] += M2;
-      M1 = -wz * (b - a) * (c * beta2 + gamma2 / 12.0 * (L - 3 * (L - c)));
-      M2 = wz * (b - a) * ((L - c) * alfa2 + gamma2 / 12.0 * (L - 3 * c));
-      q0[3] -= M1;
-      q0[4] -= M2;
+    double M1 = -wy * (b - a) * (c * beta2 + gamma2 / 12.0 * (L - 3 * (L - c)));
+    double M2 =  wy * (b - a) * ((L - c) * alfa2 + gamma2 / 12.0 * (L - 3 * c));
+    q0[1] += M1;
+    q0[2] += M2;
+    M1 = -wz * (b - a) * (c * beta2 + gamma2 / 12.0 * (L - 3 * (L - c)));
+    M2 = wz * (b - a) * ((L - c) * alfa2 + gamma2 / 12.0 * (L - 3 * c));
+    q0[3] -= M1;
+    q0[4] -= M2;
   }
 
   else {
@@ -191,7 +192,6 @@ BasicFrame3d::addLoad(ElementalLoad *theLoad, double loadFactor)
 
 
 void
-//BasicFrame3d::computeReactions(VectorND<6>& p0)
 BasicFrame3d::computeReactions(double* p0)
 {
 

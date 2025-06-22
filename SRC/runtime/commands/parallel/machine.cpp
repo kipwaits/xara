@@ -12,7 +12,8 @@ static int getPID(ClientData,  Tcl_Interp *, int, TCL_Char ** const argv);
 static int getNP( ClientData,  Tcl_Interp *, int, TCL_Char ** const argv);
 
 
-void Init_MachineRuntime(Tcl_Interp* interp, MachineBroker* theMachineBroker)
+void
+Init_MachineRuntime(Tcl_Interp* interp, MachineBroker* theMachineBroker)
 {
   Tcl_CreateCommand(interp, "getNP",     &getNP,   (ClientData)theMachineBroker, (Tcl_CmdDeleteProc *)NULL);
   Tcl_CreateCommand(interp, "getPID",    &getPID,  (ClientData)theMachineBroker, (Tcl_CmdDeleteProc *)NULL);

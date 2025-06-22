@@ -16,7 +16,7 @@
 //   $iNode, $jNode         end nodes
 //   $numIntgrPts           number of integration points along the element length
 //   $secTag                identifier for previously-defined section object
-//   $transfTag             identifier for previously-defined coordinate-transformation (FrameTransform3d) object
+//   $transfTag             identifier for previously-defined coordinate-transformation (CrdTransf) object
 //
 // Optional Input:
 //   -mass $massDens
@@ -94,7 +94,8 @@ MatrixND<NDM_NATURAL, NDM_SECTION>* MixedFrame3d::nd2T     = nullptr;
 // allocates the necessary space needed by each object
 MixedFrame3d::MixedFrame3d(int tag, std::array<int, 2>& nodes, 
                            int numSec, FrameSection** sec,
-                           BeamIntegration& bi, FrameTransform3d& coordTransf,
+                           BeamIntegration& bi, 
+                           CrdTransf& coordTransf,
                            double density, int damp, int geom)
  : FiniteElement<2,3,6>(tag, ELE_TAG_MixedFrame3d, nodes),
    beamIntegr(0),
@@ -125,7 +126,7 @@ MixedFrame3d::MixedFrame3d(int tag, std::array<int, 2>& nodes,
   }
 
   // get copy of the transformation object
-  crdTransf = coordTransf.getCopy();
+  crdTransf = coordTransf.getCopy3d();
   if (crdTransf == 0) {
     opserr << "Error: MixedFrame3d::MixedFrame3d: could not create copy of coordinate "
               "transformation object"

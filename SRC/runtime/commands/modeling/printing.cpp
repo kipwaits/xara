@@ -180,10 +180,10 @@ printDomain(OPS_Stream &s, BasicModelBuilder* builder, int flag)
       int n = builder->printRegistry<CrdTransf>(s, flag);
 
       DummyStream dummy;
-      if (builder->printRegistry<FrameTransform3d>(dummy, flag) > 0) {
+      if (builder->printRegistry<CrdTransf>(dummy, flag) > 0) {
         if (n > 0)
           s << ",\n";
-        builder->printRegistry<FrameTransform3d>(s, flag);
+        builder->printRegistry<CrdTransf>(s, flag);
       }
       s << "\n" << tab << tab << "]";
     }

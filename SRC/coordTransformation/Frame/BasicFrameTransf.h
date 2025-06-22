@@ -1,12 +1,14 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 // 
 // The purpose of this class is to wrap the more general FrameTransform<>
 // templates to reproduce the legacy CrdTransf classes that were derived
-// for elements in the "basic" coordinate system.
+// for elements in a "basic" coordinate system.
 //
 // cmp
 //
@@ -21,7 +23,7 @@
 namespace OpenSees {
 
 template<int ndf=6>
-class BasicFrameTransf3d: public FrameTransform3d
+class BasicFrameTransf3d: public CrdTransf
 {
 public:
     BasicFrameTransf3d(FrameTransform<2,ndf> *t);
@@ -30,7 +32,7 @@ public:
 
     virtual int getLocalAxes(Vector &x, Vector &y, Vector &z);
 
-    virtual FrameTransform3d *getCopy();
+    virtual CrdTransf *getCopy3d() override final;
 
     virtual double getInitialLength();
     virtual double getDeformedLength();

@@ -3,6 +3,8 @@
 //                                   xara  
 //
 //===----------------------------------------------------------------------===//
+//                              https://xara.so
+//===----------------------------------------------------------------------===//
 //
 #pragma once
 #include <map>
@@ -58,7 +60,7 @@ public:
       else if (strstr(name, "PDelta") != nullptr)
         return new PDeltaFrameTransf<nn, ndf> (tag, vz, offset_array, offset_flags);
 
-      else if (strstr(name, "Rigid") != nullptr)
+      else if (strcmp(name, "Isometric") == 0 || strstr(name, "Rigid") != nullptr)
         return new RigidFrameTransf<nn, ndf, RankineBasis<nn>> (tag, vz, offset_array, offset_flags);
 
       return nullptr;
@@ -73,12 +75,12 @@ public:
             s << ", ";
             s << "\"vz\": [" << vz[0] << ", " << vz[1] << ", " << vz[2] << "]";
             if (offsets.size() > 0) {
-                s << ", \"offsets\": {";
-                for (auto it = offsets.begin(); it != offsets.end(); ++it) {
-                    s << it->first << ": [" << it->second[0] << ", " << it->second[1] << ", " << it->second[2] << "]";
-                    if (std::next(it) != offsets.end())
-                        s << ", ";
-                }
+              s << ", \"offsets\": {";
+              for (auto it = offsets.begin(); it != offsets.end(); ++it) {
+                s << it->first << ": [" << it->second[0] << ", " << it->second[1] << ", " << it->second[2] << "]";
+                if (std::next(it) != offsets.end())
+                    s << ", ";
+              }
             }
             s << "}";
         }

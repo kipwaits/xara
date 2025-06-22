@@ -1,12 +1,16 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Description: This file contains the class definition for
-// SouzaFrameTransf.h. SouzaFrameTransf provides the
-// abstraction of a corotational transformation for a spatial frame element
+// SouzaFrameTransf. SouzaFrameTransf implements the formulation 
+// of Crisfield (1990) with the objective of maintaining the
+// original "Corotational" implementation by Remo Magalhaes de Souza, within
+// the new framework proposed by Perez and Filippou (2024).
 //
 // Written by : cmp, March 2024
 //

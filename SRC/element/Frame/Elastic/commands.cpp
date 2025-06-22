@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Description: This file contains the function to parse the Tcl input
@@ -95,8 +97,8 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
 
 
   CrdTransf *theTrans2d = nullptr;
-  FrameTransform3d *theTrans3d = nullptr;
-  Section* theSection     = nullptr;
+  CrdTransf *theTrans3d = nullptr;
+  Section*   theSection = nullptr;
 
 
 
@@ -197,25 +199,25 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
         return TCL_ERROR;
       }
 
-      int transform;
-      if (Tcl_GetInt(interp, argv[argi+1], &transform) != TCL_OK) {
+      if (Tcl_GetInt(interp, argv[argi+1], &transTag) != TCL_OK) {
         opserr << OpenSees::PromptValueError 
                << "invalid transform tag.\n";
         return TCL_ERROR;
       }
       if (ndm == 2) {
-        theTrans2d = builder->getTypedObject<CrdTransf>(transform);
+        theTrans2d = builder->getTypedObject<CrdTransf>(transTag);
         if (theTrans2d == nullptr)
           return TCL_ERROR;
       }
       else if (ndm == 3) {
-        theTrans3d = builder->getTypedObject<FrameTransform3d>(transform);
+        theTrans3d = builder->getTypedObject<CrdTransf>(transTag);
         if (theTrans3d == nullptr)
           return TCL_ERROR;
       }
       argi += 1;
       tracker.consume(Position::Transform);
     }
+#if 0
     else if (strcmp(argv[argi], "-vertical") == 0) {
       //
       // -vertical {$x $y $z}
@@ -238,11 +240,12 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
           return TCL_ERROR;
         }
       theTrans3d = new BasicFrameTransf3d(new LinearFrameTransf<2,6>(0, vertical));
-      builder->addTaggedObject<FrameTransform3d>(*theTrans3d);
+      builder->addTaggedObject<CrdTransf>(*theTrans3d);
       Tcl_Free((char *)yargv);
       argi += 1;
       tracker.consume(Position::Transform);
     }
+#endif 
 
     // Mass density
     else if (strcmp(argv[argi], "-mass") == 0) {
@@ -375,7 +378,7 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
           return TCL_ERROR;
       }
       else if (ndm == 3) {
-        theTrans3d = builder->getTypedObject<FrameTransform3d>(transTag);
+        theTrans3d = builder->getTypedObject<CrdTransf>(transTag);
         if (theTrans3d == nullptr)
           return TCL_ERROR;
       }
@@ -448,17 +451,6 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
             return TCL_ERROR;
           }
 
-          if (ndm == 2) {
-            theTrans2d = builder->getTypedObject<CrdTransf>(transTag);
-            if (theTrans2d == nullptr)
-              return TCL_ERROR;
-          }
-          else if (ndm == 3) {
-            theTrans3d = builder->getTypedObject<FrameTransform3d>(transTag);
-            if (theTrans3d == nullptr)
-              return TCL_ERROR;
-          }
-
           tracker.increment();
           break;
 
@@ -517,6 +509,11 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
   Element *theBeam = nullptr;
 
   if (ndm == 2) {
+
+    theTrans2d = builder->getTypedObject<CrdTransf>(transTag);
+    if (theTrans2d == nullptr)
+      return TCL_ERROR;
+
     // check plane frame problem has 3 dof per node
     if (ndf != 3) {
       opserr << OpenSees::PromptValueError << "invalid ndf: " << ndf;
@@ -561,12 +558,18 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
     //
     // Some final validation
     //
+
+
     // check space frame problem has at least 6 dof per node
     if ((ndf != 6 && !options.warp_flag) || (ndf != 7 && options.warp_flag)) {
       opserr << OpenSees::PromptValueError << "invalid ndof: " << ndf;
       opserr << ", for 3d problem  need 6\n";
       return TCL_ERROR;
     }
+
+    theTrans3d = builder->getTypedObject<CrdTransf>(transTag);
+    if (theTrans3d == nullptr)
+      return TCL_ERROR;
 
     FrameTransformBuilder* tb = builder->getTypedObject<FrameTransformBuilder>(transTag);
 
@@ -577,7 +580,6 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
 
     if (theSection != nullptr) {
       // now create the beam and add it to the Domain
-
       std::array<int, 2> nodes {iNode, jNode};
       theBeam = new PrismFrame3d(tag, nodes, 
                                  *theSection, *tb, 
@@ -601,7 +603,8 @@ Parse_ElasticBeam(ClientData clientData, Tcl_Interp *interp, int argc,
                                    options.mass_type,
                                    options.relz_flag, 
                                    options.rely_flag,
-                                   options.geom_flag);
+                                   options.geom_flag,
+                                   options.shear_flag);
 
       } else {
         theBeam = new ElasticBeam3d(tag, 

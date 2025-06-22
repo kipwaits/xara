@@ -43,12 +43,15 @@ EulerFrame3d::EulerFrame3d(int tag, std::array<int,2>& nodes,
                            int numSec, FrameSection **s,
                            BeamIntegration &bi,
                            FrameTransformBuilder& tb,
-                           double r, int cm)
+                           double r, 
+                           int cm)
  : FiniteElement<2, 3, 6>(tag, ELE_TAG_EulerFrame3d, nodes),
    basic_system(new BasicFrameTransf3d<6>(tb.template create<2,6>())),
    numSections(numSec),
    stencil(nullptr),
-   density(r), mass_flag(cm), use_density(true),
+   density(r), 
+   mass_flag(cm), 
+   use_density(true),
    mass_initialized(false)
 {
   q.zero();
@@ -85,7 +88,7 @@ EulerFrame3d::commitState()
 
   // Call element commitState to do any base class stuff
   if ((status = this->Element::commitState()) != 0)
-    opserr << "ForceFrame3d::commitState () - failed in base class";
+    return status;
 
   for (GaussPoint& point : points) {
     if (point.material->commitState() != 0)
@@ -107,10 +110,8 @@ EulerFrame3d::revertToLastCommit()
 
     if (section.revertToLastCommit() != 0)
       return -1;
-
   }
 
-  // Revert the transformation to last commit
   if (basic_system->revertToLastCommit() != 0)
     return -2;
 
@@ -120,13 +121,12 @@ EulerFrame3d::revertToLastCommit()
 int
 EulerFrame3d::revertToStart()
 {
-  // Loop over the integration points and revert states to start
+
   for (GaussPoint& point : points) {
     if (point.material->revertToStart() != 0)
       return -1;
   }
 
-  // Revert the transformation to start
   if (basic_system->revertToStart() != 0)
     return -2;
 
@@ -255,7 +255,7 @@ EulerFrame3d::update()
   for (int i = 0; i < points.size(); i++) {
       double xi6 = 6.0*xi[i];
 
-      const VectorND<4> e {
+      const VectorND<nsr> e {
            jsx*v[0],                                 // N
            jsx*(xi6-4.0)*v[1] + jsx*(xi6-2.0)*v[2],  // Mz
            jsx*(xi6-4.0)*v[3] + jsx*(xi6-2.0)*v[4],  // My
@@ -263,7 +263,7 @@ EulerFrame3d::update()
       };
       
       // Set the section deformations
-      err += points[i].material->setTrialState<4, scheme>(e);
+      err += points[i].material->setTrialState<nsr, scheme>(e);
   }
 
   return err;
@@ -279,6 +279,8 @@ EulerFrame3d::getBasicForce()
 const Vector &
 EulerFrame3d::getResistingForce()
 {
+  this->getBasicTangent(State::Pres, 0);
+
   double q0 = q[0];
   double q1 = q[1];
   double q2 = q[2];
@@ -386,7 +388,7 @@ EulerFrame3d::getBasicTangent(State state, int rate)
     }
 
     if (state != State::Init) {
-      const VectorND<4,double> s = point.material->getResultant<nsr,scheme>();
+      const VectorND<nsr> s = point.material->getResultant<nsr,scheme>();
       // q.addMatrixTransposeVector(1.0, *B, s, wts(i));
       q[0] += s[0]*wt[i];
       q[1] += (xi6-4.0)*s[1]*wt[i];
@@ -406,9 +408,8 @@ EulerFrame3d::getBasicTangent(State state, int rate)
 const Matrix &
 EulerFrame3d::getTangentStiff()
 {
-
-  VectorND<6>   q  = this->getBasicForce();
   MatrixND<6,6> kb = this->getBasicTangent(State::Pres, 0);
+  VectorND<6>   q  = this->getBasicForce();
 
   return basic_system->getGlobalStiffMatrix(Matrix(kb), Vector(q));
 }
@@ -421,14 +422,13 @@ EulerFrame3d::getInitialStiff()
 }
 
 int
-EulerFrame3d::sendSelf(int commitTag, Channel &theChannel)
+EulerFrame3d::sendSelf(int tag, Channel &c)
 {
   return -1;
 }
 
 int
-EulerFrame3d::recvSelf(int commitTag, Channel &theChannel,
-                                                FEM_ObjectBroker &theBroker)
+EulerFrame3d::recvSelf(int tag, Channel &c, FEM_ObjectBroker &b)
 {
   return -1;
 }

@@ -17,7 +17,7 @@
 #include <Element.h>
 #include <Matrix.h>
 
-class FrameTransform3d;
+class CrdTransf;
 
 class ElasticTimoshenkoBeam3d : public Element {
 public:
@@ -25,7 +25,7 @@ public:
                           int Nd1, int Nd2, 
                           double E, double G, double A, double Jx,
                           double Iy, double Iz, double Avy, double Avz,
-                          FrameTransform3d& theTransf,
+                          CrdTransf& theTransf,
                           double rho = 0.0, int cMass = 0,
                           bool do_delta);
 

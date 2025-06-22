@@ -11,7 +11,8 @@ static int opsBarrier(ClientData, Tcl_Interp *, int, TCL_Char ** const argv);
 static int opsSend(ClientData, Tcl_Interp *, int, TCL_Char ** const argv);
 static int opsRecv(ClientData, Tcl_Interp *, int,TCL_Char ** const argv);
 
-void Init_Communication(Tcl_Interp* interp, MachineBroker* theMachineBroker)
+void
+Init_Communication(Tcl_Interp* interp, MachineBroker* theMachineBroker)
 {
   Tcl_CreateCommand(interp, "send",      &opsSend, (ClientData)theMachineBroker, (Tcl_CmdDeleteProc *)NULL);
   Tcl_CreateCommand(interp, "recv",      &opsRecv, (ClientData)theMachineBroker, (Tcl_CmdDeleteProc *)NULL);

@@ -20,7 +20,7 @@
 
 #include <Node.h>
 #include <FrameSection.h>
-#include <FrameTransform.h>
+#include <CrdTransf.h>
 #include <Domain.h>
 #include <Channel.h>
 #include <Parameter.h>
@@ -85,7 +85,7 @@ getStrainMatrix(double xi, double L, const Vector& v, MatrixND<8,12>&B, MatrixND
 EulerDeltaFrame3d::EulerDeltaFrame3d(int tag, std::array<int,2>& nodes,
                                      std::vector<FrameSection*> &secs,
                                      BeamIntegration &bi,
-                                     FrameTransform3d &coordTransf,
+                                     CrdTransf &coordTransf,
                                      double r, int cm, bool use_mass_)
 
     : FiniteElement(tag, ELE_TAG_EulerDeltaFrame3d, nodes),
@@ -105,7 +105,7 @@ EulerDeltaFrame3d::EulerDeltaFrame3d(int tag, std::array<int,2>& nodes,
 
   beamInt = bi.getCopy();
 
-  theCoordTransf = coordTransf.getCopy();
+  theCoordTransf = coordTransf.getCopy3d();
 
   q0.zero();
 }

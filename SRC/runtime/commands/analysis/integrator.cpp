@@ -418,10 +418,12 @@ G3Parse_newMinUnbalDispNormIntegrator(ClientData clientData, Tcl_Interp* interp,
       } else if ((recvd&MinLamb) == 0) {
         if (Tcl_GetDouble(interp, argv[i], &minlambda) != TCL_OK)
           return nullptr;
+        recvd |= MinLamb;
 
       } else if ((recvd&MaxLamb) == 0) {
         if (Tcl_GetDouble(interp, argv[i], &maxlambda) != TCL_OK)
           return nullptr;
+        recvd |= MaxLamb;
       }
     }
 

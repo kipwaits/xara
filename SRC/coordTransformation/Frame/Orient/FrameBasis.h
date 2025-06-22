@@ -5,6 +5,7 @@
 //===----------------------------------------------------------------------===//
 //                              https://xara.so
 //===----------------------------------------------------------------------===//
+//
 #pragma once
 #include <Node.h>
 #include <Vector.h>
@@ -15,22 +16,23 @@
 #include <MatrixND.h>
 #include <Matrix3D.h>
 
+#define TRIAD C2
 namespace OpenSees {
 
 class FrameBasis
 {
 public:
-  virtual int           initialize() =0;
-  virtual int           update() =0;
+  virtual int       initialize() =0;
+  virtual int       update() =0;
 
-  virtual double        getLength() const =0;
+  virtual double    getLength() const =0;
   // x, \Lambda
-  virtual Matrix3D      getRotation() const =0;
-  virtual Vector3D      getPosition() =0;
+  virtual Matrix3D  getRotation() const =0;
+  virtual Vector3D  getPosition() =0;
   // \psi
-  virtual Vector3D      getPositionVariation(int ndf, double* du) =0; 
-  virtual Vector3D      getRotationVariation(int ndf, double* du) =0;
-  virtual Matrix3D      getRotationDelta() =0;
+  virtual Vector3D  getPositionVariation(int ndf, double* du) =0; 
+  virtual Vector3D  getRotationVariation(int ndf, double* du) =0;
+  virtual Matrix3D  getRotationDelta() =0;
   //
   virtual MatrixND<3,6> getRotationGradient(int node) =0;
 
@@ -43,7 +45,12 @@ class RankineBasis : public FrameBasis
 public:
   RankineBasis(std::array<Node*,nn>& nodes, const Vector3D& vecxz)
   : nodes{nodes}, vz(vecxz), Xc{}, c{}, R{} {
-  };
+  }
+
+  void
+  setOffsets(std::array<Vector3D, nn>* offsets) {
+    this->offsets = offsets;
+  }
 
   virtual int 
   initialize() {
@@ -105,6 +112,12 @@ public:
         for (int k = 0; k < 3; k++)
           e1[k] += uJ(k) - uI(k);
 
+        if (offsets != nullptr) [[unlikely]] {
+          e1.addVector(1.0, (*offsets)[   0],  1.0);
+          e1.addVector(1.0, nodes[0]->getTrialRotation().rotate((*offsets)[0]), -1.0);
+          e1.addVector(1.0, (*offsets)[nn-1], -1.0);
+          e1.addVector(1.0, nodes[nn-1]->getTrialRotation().rotate((*offsets)[nn-1]), 1.0);
+        }
         // Calculate the deformed length
         Ln = e1.norm();
 
@@ -118,16 +131,12 @@ public:
     }
 
     {
-#if 1
-      Matrix3D Ri = MatrixFromVersor(nodes[0]->getTrialRotation()); //*R[init];
-      Ri *= 0.5;
-      Ri.addMatrix(MatrixFromVersor(nodes[0]->getTrialRotation()), 0.5);
-      Vector3D e2 = Ri^(vz.cross(e1));
-      // Vector3D e2 = (R[pres]^Ri)*(vz.cross(e1));
-      // Vector3D e2 = Ri*R[pres]^(vz.cross(e1));
-#else 
-      Vector3D e2 = vz.cross(e1);
-#endif
+#if 1 // TRIAD==R2
+      constexpr static Vector3D D2 {0,1,0};
+      const Vector3D E2 = R[init]*D2;
+      Vector3D e2 = MatrixFromVersor(nodes[0]->getTrialRotation())*E2; //*R[init];
+      e2.addVector(0.5, MatrixFromVersor(nodes[1]->getTrialRotation())*E2, 0.5);
+      n = e2[0]/e2[1];
       Vector3D e3 = e1.cross(e2);
       e3 /= e3.norm();
 
@@ -138,10 +147,46 @@ public:
         R[pres](i,1) = e2[i];
         R[pres](i,2) = e3[i];
       }
+
+#elif 1 // TRIAD==C2
+      Versor q0 = VersorFromMatrix(R[init]);
+      Versor qI = nodes[0]->getTrialRotation()*q0;
+      Versor qJ = nodes[nn-1]->getTrialRotation()*q0;
+      Vector3D gammaw = CayleyFromVersor(qJ.mult_conj(qI));
+
+      gammaw *= 0.5;
+
+      //  Qbar = VersorProduct(VersorFromMatrix(CaySO3(gammaw)), qI);
+      Matrix3D Rbar = CaySO3(gammaw)*MatrixFromVersor(qI); // *q0);
+      Vector3D v { Rbar(0,0), Rbar(1,0), Rbar(2,0) };
+      double dot = v.dot(e1);
+      if (std::fabs(std::fabs(dot)-1.0) < 1.0e-10) {
+        R[pres] = Rbar;
+      } else {
+        v  = v.cross(e1);
+        double scale = std::acos(dot)/v.norm();
+        v *= scale; // ::acos(r1.dot(e1));
+
+        R[pres] = ExpSO3(v)*Rbar;
+
+        Vector3D r1 { R[pres](0,0), R[pres](1,0), R[pres](2,0) };
+        Vector3D r2 { R[pres](0,1), R[pres](1,1), R[pres](2,1) };
+        Vector3D r3 { R[pres](0,2), R[pres](1,2), R[pres](2,2) };
+        // opserr << Vector(r1-e1);
+        // R[pres] = Rbar^ExpSO3(v);
+      }
+#else 
+      Vector3D e2 = vz.cross(e1);
+#endif
+
     }
 
     Vector3D uc = nodes[ic]->getTrialDisp();
-    Vector3D X = nodes[ic]->getCrds(); // R[init]*c[init];
+    if (offsets != nullptr) {
+      uc.addVector(1.0, (*offsets)[ic], -1.0);
+      uc.addVector(1.0, nodes[ic]->getTrialRotation().rotate((*offsets)[ic]), 1.0);
+    }
+    Vector3D X = nodes[ic]->getCrds();
     c[pres] = R[pres]^(X + uc);
     return 0;
   };
@@ -179,7 +224,8 @@ public:
       Gb.template insert<0,0>(ix, -1/Ln);
     else if (node == nn-1)
       Gb.template insert<0,0>(ix,  1/Ln);
-  
+    
+    Gb(0,2) = (node == 0? 1.0 : -1.0)*n;
     return Gb;
   }
 
@@ -217,11 +263,17 @@ private:
   constexpr static int ic = 0; // std::floor(0.5*(nn+1));
   enum { pres, prev, init};
   double L, Ln;
+  double n   = 0,
+         n11 = 1,
+         n12 = 0,
+         n21 = 0,
+         n22 = 1;
   Vector3D vz, dX, Xc;
   Matrix3D R[3];
   Vector3D c[3];
   Matrix3D dR;
   std::array<Node*,nn>& nodes;
+  std::array<Vector3D, nn>* offsets = nullptr; // offsets
 };
 
 } // namespace OpenSees

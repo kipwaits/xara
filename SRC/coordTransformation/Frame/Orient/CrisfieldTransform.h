@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 #pragma once
@@ -44,10 +46,11 @@ public:
         // Vector3D e1, e2, e3;
         e[0]  = dx;
         e[0] /= Ln;
-        Triad r = Triad{MatrixFromVersor(Qbar)};
+        Matrix3D Rbar = MatrixFromVersor(Qbar);
+        Triad r = Triad{Rbar};
         Vector3D r1 = r[1],
-                  r2 = r[2],
-                  r3 = r[3];
+                 r2 = r[2],
+                 r3 = r[3];
 
         // e2 = r2 - (e1 + r1)*((r2^e1)*0.5);
     

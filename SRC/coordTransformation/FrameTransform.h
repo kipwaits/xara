@@ -1,6 +1,13 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
+//
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
+//===----------------------------------------------------------------------===//
+//
+//         Please cite the following resource in any derivative works:
+//                 https://doi.org/10.5281/zenodo.10456866
 //
 //===----------------------------------------------------------------------===//
 //
@@ -81,9 +88,6 @@ public:
   virtual VectorND<nn*ndf>    pushResponse(VectorND<nn*ndf>&pl) =0;
   virtual MatrixND<nn*ndf,nn*ndf> pushResponse(MatrixND<nn*ndf,nn*ndf>& kl, const VectorND<nn*ndf>& pl) =0;
 
-  // // template<
-  // VectorND<nn*ndf-6> pushResponse(VectorND<nn*ndf-6>&pb);
-
   VectorND<nn*ndf>    pushConstant(const VectorND<nn*ndf>&pl);
   MatrixND<nn*ndf,nn*ndf> pushConstant(const MatrixND<nn*ndf,nn*ndf>& kl);
 
@@ -94,10 +98,10 @@ public:
   virtual Response *setResponse(const char **argv, int argc, 
                                 OPS_Stream &theHandler) {
     return nullptr;
-  };
+  }
   virtual int getResponse(int responseID, Information &) {
     return -1;
-  };
+  }
 
   // Sensitivity
   // virtual const Vector &getBasicDisplTotalGrad(int grad)=0;
@@ -133,26 +137,10 @@ public:
     }
     return 0;
   }
+protected:
+
 };
 
 #include "FrameTransform.tpp"
-
-//
-// 3D
-//
-class FrameTransform3d : public CrdTransf {
-
-public:
-  FrameTransform3d(int tag, int classTag) : CrdTransf(tag, classTag) {}
-
-  virtual FrameTransform3d *getCopy() {
-    return nullptr;
-  }
-
-  virtual CrdTransf *getCopy3d() {
-    return getCopy();
-  }
-
-};
 
 #endif // include guard

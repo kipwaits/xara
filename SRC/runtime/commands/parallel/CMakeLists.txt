@@ -61,10 +61,10 @@ set_property(TARGET LibOpenSeesMP PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 target_link_libraries(LibOpenSeesMP PRIVATE 
         OpenSeesRT_Parallel
-	OPS_Parallel 
-	OPS_Actor  
-	OpenSeesRT 
-	OPS_Runtime 
+        OPS_Parallel 
+        OPS_Actor  
+        OpenSeesRT 
+        OPS_Runtime 
         MPI::MPI_CXX
 )
 

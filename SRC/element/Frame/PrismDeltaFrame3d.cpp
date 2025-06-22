@@ -4,15 +4,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// 3D prismatic frame element with:
-//
-// - Type 3 (uniform) warping from shear and torsion and 
-// - symmetric cross section,
+// 3D prismatic frame element. 
 //
 // Written: cmp 2024
 //
 #include <Frame/BasicFrame3d.h>
-#include "PrismFrame3d.h"
+#include "PrismDeltaFrame3d.h"
 #include <Domain.h>
 #include <Channel.h>
 #include <FEM_ObjectBroker.h>
@@ -27,23 +24,28 @@
 #include <math.h>
 #include <stdlib.h>
 #include <Exponential.h>
-#include <BasicFrameTransf.h>
-#include <runtime/commands/modeling/transform/FrameTransformBuilder.hpp>
 
+PrismDeltaFrame3d::PrismDeltaFrame3d()
+ : BasicFrame3d(0,ELE_TAG_ElasticBeam3d),
+   E(0.0), G(0.0), A(0.0), Ay(0.0), Az(0.0),
+   Jx(0.0), 
+   Iy(0.0), Iz(0.0), Iyz(0.0),
+   total_mass(0.0), twist_mass(0.0),
+   geom_flag(0)
+{
+  q.zero();
+}
 
-PrismFrame3d::PrismFrame3d(int tag, std::array<int, 2>& nodes,
-                           double  A, double  E, double  G, 
+PrismDeltaFrame3d::PrismDeltaFrame3d(int tag, std::array<int, 2>& nodes,
+                           double  a, double  E, double  G, 
                            double jx, double iy, double iz,
-                           FrameTransformBuilder& tb,
-                           double r, int cm,
+                           CrdTransf &coordTransf, 
+                           double r, int cm, 
                            int rz, int ry,
-                           int geom,
-                           int shear_flag)
+                           int geom)
 
-  :FiniteElement<2, 3, 6> (tag, ELE_TAG_ElasticBeam3d, nodes), 
-   BasicFrame3d(),
-   basic_system(new BasicFrameTransf3d<6>(tb.template create<2,6>())),
-   A(A), E(E), G(G), Jx(jx), 
+  :BasicFrame3d(tag,ELE_TAG_ElasticBeam3d, nodes, coordTransf),
+   A(a), E(E), G(G), Jx(jx), 
    Iy(iy), Iz(iz), Iyz(0),
    mass_flag(cm), density(r),
    releasez(rz), releasey(ry),
@@ -51,75 +53,51 @@ PrismFrame3d::PrismFrame3d(int tag, std::array<int, 2>& nodes,
    section_tag(-1)
 {
   q.zero();
-  ke.zero();
-  kg.zero();
-  km.zero();
 }
 
 
-PrismFrame3d::PrismFrame3d(int tag, 
+PrismDeltaFrame3d::PrismDeltaFrame3d(int tag, 
                            std::array<int,2>& nodes,
                            FrameSection &section,  
-                           FrameTransformBuilder& tb,
+                           CrdTransf &coordTransf, 
                            double density, int cMass, bool use_mass, 
                            int rz, int ry,
-                           int geom,
-                           int shear_flag
+                           int geom
                            )
-  : FiniteElement<2, 3, 6>(tag, ELE_TAG_ElasticBeam3d, nodes),
-    BasicFrame3d(),
-    basic_system(new BasicFrameTransf3d<6>(tb.template create<2,6>())),
+  : BasicFrame3d(tag,ELE_TAG_ElasticBeam3d, nodes, coordTransf),
     mass_flag(cMass), density(density),
     releasez(rz), releasey(ry),
     geom_flag(geom)
 {
   q.zero();
-  ke.zero();
-  kg.zero();
-  km.zero();
 
-  // 1) Get Area properties
   section_tag = section.getTag();
   section.getIntegral(Field::Unit,   State::Init, A);
   section.getIntegral(Field::UnitZZ, State::Init, Iy);
   section.getIntegral(Field::UnitYY, State::Init, Iz);
-
-  {
-    // 2) Get Young and Shear Modulus
-    const ID& layout = section.getType();
-    const Matrix& Ks = section.getInitialTangent();
-    for (int i=0; i<layout.Size(); i++) {
-      if (layout(i) == FrameStress::N) {
-        E = Ks(i,i)/A;
-      }
-      else if (layout(i) == FrameStress::Vy) {
-        G = Ks(i,i)/A;
-      } else if (layout(i) == FrameStress::T) {
-        G = Ks(i,i)/(Iy + Iz);
-      }
-    }
-  }
-
-  // 3) Remaining Constants
-  static constexpr FrameStressLayout scheme = {
-    FrameStress::N,
-    FrameStress::Vy,
-    FrameStress::Vz,
-    FrameStress::T,
-    FrameStress::My,
-    FrameStress::Mz,
-  };
-
-  MatrixND<6,6> Kc = section.getTangent<6,scheme>(State::Init);
-
-  Jx = Kc(3,3)/G;
+  if (section.getIntegral(Field::UnitY,  State::Init, Ay) != 0)
+    Ay = 0; //A;
+  if (section.getIntegral(Field::UnitZ,  State::Init, Az) != 0)
+    Az = 0; // A;
+  Jx = Iy + Iz;
   Iyz = 0.0;
 
-  if (!shear_flag) {
-    Ay = Az = 0.0;
-  } else {
-    Ay = Kc(1,1)/G;
-    Az = Kc(2,2)/G;
+  const Matrix &sectTangent = section.getInitialTangent();
+  const ID &sectCode = section.getType();
+
+  for (int i=0; i<sectCode.Size(); i++) {
+    int code = sectCode(i);
+    switch(code) {
+    case SECTION_RESPONSE_P:
+      E = sectTangent(i,i)/A;
+      break;
+    case SECTION_RESPONSE_T:
+      if (Jx != 0)
+        G  = sectTangent(i,i)/Jx;
+      break;
+    default:
+      break;
+    }
   }
 
   // TODO
@@ -131,26 +109,24 @@ PrismFrame3d::PrismFrame3d(int tag,
 }
 
 int
-PrismFrame3d::setNodes()
+PrismDeltaFrame3d::setNodes()
 {
 
-  
-  if (basic_system->initialize(theNodes[0], theNodes[1]) != 0) {
+
+  if (theCoordTransf->initialize(theNodes[0], theNodes[1]) != 0) {
+      opserr << "BasicFrame3d::setDomain  tag: " 
+            << this->getTag()
+            << " -- Error initializing coordinate transformation\n";
       return -1;
   }
-  int status = 0;
 
-  L = basic_system->getInitialLength();
-  this->BasicFrame3d::setLength(L);
+  if (status != 0)
+    return status;
+
+  L = theCoordTransf->getInitialLength();
 
   if (L == 0.0) {
-    opserr << "PrismFrame3d::setDomain  tag: " << this->getTag() << " -- Element has zero length\n";
-    total_mass = 0;
-    twist_mass = 0;
-    phiY = 0;
-    phiZ = 0;
-
-    formBasicStiffness(km);
+    opserr << "PrismDeltaFrame3d::setDomain  tag: " << this->getTag() << " -- Element has zero length\n";
     return -1;
   }
 
@@ -159,7 +135,7 @@ PrismFrame3d::setNodes()
   else
     phiY = 0.0;
   if (Az != 0)
-    phiZ = 12.0 * E * Iy / (L * L * G * Az);
+    phiZ = 12.0 * E * Iz / (L * L * G * Ay);
   else
     phiZ = 0.0;
   //
@@ -173,7 +149,7 @@ PrismFrame3d::setNodes()
 
 
 inline void
-PrismFrame3d::formBasicStiffness(OpenSees::MatrixND<6,6>& kb) const
+PrismDeltaFrame3d::formBasicStiffness(OpenSees::MatrixND<6,6>& kb) const
 {    
     kb.zero();
     kb(0,0) = E*A/L;
@@ -186,7 +162,6 @@ PrismFrame3d::formBasicStiffness(OpenSees::MatrixND<6,6>& kb) const
       kb(2,1) = kb(1,2) = E*Iz*(2-phiY)/(L*(1+phiY));
       kb(1,4) = kb(4,1) = 2.0*E*Iyz/L; // iz-jy and jy-iz
     }
-
     if (releasez == 1)   // release I; TODO: shear correction
       kb(2,2) = 3.0*E*Iz/L;
 
@@ -208,39 +183,38 @@ PrismFrame3d::formBasicStiffness(OpenSees::MatrixND<6,6>& kb) const
 
 
 int
-PrismFrame3d::commitState()
+PrismDeltaFrame3d::commitState()
 {
   int retVal = 0;
   if ((retVal = this->Element::commitState()) != 0) {
-    opserr << "PrismFrame3d::commitState () - failed in base class";
+    opserr << "PrismDeltaFrame3d::commitState () - failed in base class";
   }    
-  retVal += basic_system->commitState();
+  retVal += theCoordTransf->commitState();
   return retVal;
 }
 
 
 int
-PrismFrame3d::revertToLastCommit()
+PrismDeltaFrame3d::revertToLastCommit()
 {
-  return basic_system->revertToLastCommit();
+  return theCoordTransf->revertToLastCommit();
 }
 
 
 int
-PrismFrame3d::revertToStart()
+PrismDeltaFrame3d::revertToStart()
 {
   q.zero();
-  return basic_system->revertToStart();
+  return theCoordTransf->revertToStart();
 }
 
 
 int
-PrismFrame3d::update()
+PrismDeltaFrame3d::update()
 {
-  int ok = basic_system->update();
+  int ok = theCoordTransf->update();
 
-  const Vector &v = basic_system->getBasicTrialDisp();
-  
+  const Vector &v = theCoordTransf->getBasicTrialDisp();
 
   // Form the axial force
   double N = E*A/L*v[0];
@@ -375,39 +349,22 @@ PrismFrame3d::update()
     }
 
   q  = ke*v;
-
-  q += this->BasicFrame3d::q0;
+  q += q0;
 
   return ok;
 }
 
 
 OpenSees::VectorND<6>&
-PrismFrame3d::getBasicForce()
+PrismDeltaFrame3d::getBasicForce()
 {
   return q;
 }
 
-
-const Matrix &
-PrismFrame3d::getTangentStiff()
-{
-
-  VectorND<6>   q  = this->getBasicForce();
-  MatrixND<6,6> kb = this->getBasicTangent(State::Pres, 0);
-
-  return basic_system->getGlobalStiffMatrix(Matrix(kb), Vector(q));
-}
-
-const Matrix &
-PrismFrame3d::getInitialStiff()
-{
-  return basic_system->getInitialGlobalStiffMatrix(this->getBasicTangent(State::Init, 0));
-}
-
 const Vector &
-PrismFrame3d::getResistingForce()
+PrismDeltaFrame3d::getResistingForce()
 {
+  double q0 = q[0];
   double q1 = q[1];
   double q2 = q[2];
   double q3 = q[3];
@@ -415,63 +372,59 @@ PrismFrame3d::getResistingForce()
   double q5 = q[5];
 
   thread_local VectorND<12> pl;
-  pl[0]  = -q[0];           // Ni
-#if 0
+  pl[0]  = -q0;           // Ni
   pl[1]  =  (q1 + q2)/L;  // Viy
   pl[2]  = -(q3 + q4)/L;  // Viz
-  pl[7]  = -pl[1];        // Vjy
-  pl[8]  = -pl[2];        // Vjz
-#endif
   pl[3]  = -q5;           // Ti
   pl[4]  =  q3;
   pl[5]  =  q1;
-  pl[6]  =  q[0];           // Nj
+  pl[6]  =  q0;           // Nj
+  pl[7]  = -pl[1];        // Vjy
+  pl[8]  = -pl[2];        // Vjz
   pl[9]  = q5;            // Tj
   pl[10] = q4;
   pl[11] = q2;
 
-  VectorND<12> pf{0.0};
+  thread_local VectorND<12> pf{0.0};
   pf[0] = p0[0];
   pf[1] = p0[1];
   pf[7] = p0[2];
   pf[2] = p0[3];
   pf[8] = p0[4];
 
-  static VectorND<12> pg;
-  static Vector wrapper(pg);
 
-  pg  = basic_system->t.pushResponse(pl);
-  pg += basic_system->t.pushConstant(pf);
+  thread_local VectorND<12> pg;
+  thread_local Vector wrapper(pg);
+
+  pg  = theCoordTransf->pushResponse(pl);
+  pg += theCoordTransf->pushConstant(pf);
 
   // Subtract other external nodal loads ... P_res = P_int - P_ext
   if (total_mass != 0.0)
     wrapper.addVector(1.0, p_iner, -1.0);
-
   return wrapper;
 }
 
 OpenSees::MatrixND<6,6>&
-PrismFrame3d::getBasicTangent(State flag, int rate)
+PrismDeltaFrame3d::getBasicTangent(State flag, int rate)
 {
   return ke;
 }
 
 
 const Matrix &
-PrismFrame3d::getMass()
+PrismDeltaFrame3d::getMass()
 {
     if (total_mass == 0.0) {
 
-        thread_local MatrixND<12,12> M;
-        M.zero();
+        thread_local MatrixND<12,12> M{0.0};
         thread_local Matrix Wrapper{M};
         return Wrapper;
 
     } else if (mass_flag == 0)  {
         // Lumped mass matrix
 
-        thread_local MatrixND<12,12> M;
-        M.zero();
+        thread_local MatrixND<12,12> M{0.0};
         thread_local Matrix Wrapper{M};
         double m = 0.5*total_mass;
         M(0,0) = m;
@@ -486,7 +439,7 @@ PrismFrame3d::getMass()
       // Consistent (cubic, prismatic) mass matrix
 
       if (!shear_flag) {
-        double L  = basic_system->getInitialLength();
+        double L  = theCoordTransf->getInitialLength();
         double m  = total_mass/420.0;
         double mx = twist_mass;
         thread_local MatrixND<12,12> M{0};
@@ -516,7 +469,7 @@ PrismFrame3d::getMass()
         M( 5, 7) = M( 7, 5) = -M(1,11);
 
         // Transform local mass matrix to global system
-        return basic_system->getGlobalMatrixFromLocal(M);
+        return theCoordTransf->getGlobalMatrixFromLocal(M);
     }
     else {
       Matrix mlTrn(12, 12), mlRot(12, 12), ml(12, 12);
@@ -565,26 +518,26 @@ PrismFrame3d::getMass()
       ml = mlTrn + mlRot;
 
       // Transform local mass matrix to global system
-      return basic_system->getGlobalMatrixFromLocal(ml);
+      return theCoordTransf->getGlobalMatrixFromLocal(ml);
     }
   }
 }
 
 
 int
-PrismFrame3d::sendSelf(int cTag, Channel &theChannel)
+PrismDeltaFrame3d::sendSelf(int cTag, Channel &theChannel)
 {
   return -1;
 }
 
 int
-PrismFrame3d::recvSelf(int cTag, Channel &theChannel, FEM_ObjectBroker &theBroker)
+PrismDeltaFrame3d::recvSelf(int cTag, Channel &theChannel, FEM_ObjectBroker &theBroker)
 {
   return -1;
 }
 
 void
-PrismFrame3d::Print(OPS_Stream &s, int flag)
+PrismDeltaFrame3d::Print(OPS_Stream &s, int flag)
 {
   const ID& node_tags = this->getExternalNodes();
 
@@ -604,7 +557,7 @@ PrismFrame3d::Print(OPS_Stream &s, int flag)
 
       s << "\"releasez\": "<< releasez << ", ";
       s << "\"releasey\": "<< releasey << ", ";                
-      s << "\"transform\": " << basic_system->getTag();
+      s << "\"crdTransformation\": " << theCoordTransf->getTag();
       s << ", ";
 
       // 
@@ -638,9 +591,9 @@ PrismFrame3d::Print(OPS_Stream &s, int flag)
         static Vector yAxis(3);
         static Vector zAxis(3);
 
-        basic_system->getLocalAxes(xAxis, yAxis, zAxis);
+        theCoordTransf->getLocalAxes(xAxis, yAxis, zAxis);
 
-        s << "#PrismFrame3d\n";
+        s << "#PrismDeltaFrame3d\n";
         s << "#LocalAxis " << xAxis(0) << " " << xAxis(1) << " " << xAxis(2);
         s << " " << yAxis(0) << " " << yAxis(1) << " " << yAxis(2) << " ";
         s << zAxis(0) << " " << zAxis(1) << " " << zAxis(2) << "\n";
@@ -660,9 +613,9 @@ PrismFrame3d::Print(OPS_Stream &s, int flag)
     }
     
     if (flag == OPS_PRINT_CURRENTSTATE) {
-        s << "\n  PrismFrame3d: " << this->getTag() << "\n";
+        s << "\n  PrismDeltaFrame3d: " << this->getTag() << "\n";
         s << "\tConnected Nodes: " << connectedExternalNodes;
-        s << "\tCoordTransf: " << basic_system->getTag() << "\n";
+        s << "\tCoordTransf: " << theCoordTransf->getTag() << "\n";
         s << "\tmass density:  " << total_mass/L << ", mass_type: " << mass_flag << "\n";
         s << "\trelease about z:  " << releasez << "\n";
         s << "\trelease about y:  " << releasey << "\n";
@@ -672,7 +625,7 @@ PrismFrame3d::Print(OPS_Stream &s, int flag)
 
 
 Response*
-PrismFrame3d::setResponse(const char **argv, int argc, OPS_Stream &output)
+PrismDeltaFrame3d::setResponse(const char **argv, int argc, OPS_Stream &output)
 {
 
   Response *theResponse = nullptr;
@@ -766,7 +719,7 @@ PrismFrame3d::setResponse(const char **argv, int argc, OPS_Stream &output)
   }
 
   if (theResponse == nullptr)
-    theResponse = basic_system->setResponse(argv, argc, output);
+    theResponse = theCoordTransf->setResponse(argv, argc, output);
 
   output.endTag(); // ElementOutput
 
@@ -774,9 +727,9 @@ PrismFrame3d::setResponse(const char **argv, int argc, OPS_Stream &output)
 }
 
 int
-PrismFrame3d::getResponse(int responseID, Information &info)
+PrismDeltaFrame3d::getResponse(int responseID, Information &info)
 {
-  double L = basic_system->getInitialLength();
+  double L = theCoordTransf->getInitialLength();
   double oneOverL = 1.0/L;
   static Vector Res(12);
   Res = this->getResistingForce();
@@ -827,7 +780,7 @@ PrismFrame3d::getResponse(int responseID, Information &info)
     return info.setVector(q);
 
   case 5:
-    return info.setVector(basic_system->getBasicTrialDisp());
+    return info.setVector(theCoordTransf->getBasicTrialDisp());
 
   case 6: {
     double xL = info.theDouble;
@@ -850,13 +803,13 @@ PrismFrame3d::getResponse(int responseID, Information &info)
 
 
 const Vector&
-PrismFrame3d::getResistingForceSensitivity(int gradNumber)
+PrismDeltaFrame3d::getResistingForceSensitivity(int gradNumber)
 {
   static Vector P(12);
   P.Zero();
 
   VectorND<NBV> dqdh = this->getBasicForceGrad(gradNumber);
-  double dLdh = basic_system->getLengthGrad();
+
   // Transform forces
   double dp0dh[6];
   dp0dh[0] = 0.0;
@@ -865,32 +818,32 @@ PrismFrame3d::getResistingForceSensitivity(int gradNumber)
   dp0dh[3] = 0.0;
   dp0dh[4] = 0.0;
   dp0dh[5] = 0.0;
-  this->addReactionGrad(dp0dh, gradNumber, dLdh);
+  this->addReactionGrad(dp0dh, gradNumber, theCoordTransf->getLengthGrad());
   Vector dp0dhVec(dp0dh, 6);
 
-  if (basic_system->isShapeSensitivity()) {
+  if (theCoordTransf->isShapeSensitivity()) {
     //
     // dqdh += K dvdh|_ug
     //
     dqdh.addMatrixVector(1.0, this->getBasicTangent(State::Pres, 0), 
-                         basic_system->getBasicDisplFixedGrad(), 1.0);
+                         theCoordTransf->getBasicDisplFixedGrad(), 1.0);
 
     // dAdh^T q
-    P = basic_system->getGlobalResistingForceShapeSensitivity(this->getBasicForce(), dp0dhVec, gradNumber);
+    P = theCoordTransf->getGlobalResistingForceShapeSensitivity(this->getBasicForce(), dp0dhVec, gradNumber);
   }
 
   // A^T (dqdh + k dAdh u)
-  P += basic_system->getGlobalResistingForce(dqdh, dp0dhVec);
+  P += theCoordTransf->getGlobalResistingForce(dqdh, dp0dhVec);
 
   return P;
 }
 
 int
-PrismFrame3d::getResponseSensitivity(int responseID, int gradNumber, Information& info)
+PrismDeltaFrame3d::getResponseSensitivity(int responseID, int gradNumber, Information& info)
 {
   // Basic deformation sensitivity
   if (responseID == 3) {
-    const Vector& dvdh = basic_system->getBasicDisplTotalGrad(gradNumber);
+    const Vector& dvdh = theCoordTransf->getBasicDisplTotalGrad(gradNumber);
     return info.setVector(dvdh);
   }
 
@@ -898,7 +851,7 @@ PrismFrame3d::getResponseSensitivity(int responseID, int gradNumber, Information
   else if (responseID == 7) {
     static Vector dqdh(6);
 
-    const Vector& dvdh = basic_system->getBasicDisplTotalGrad(gradNumber);
+    const Vector& dvdh = theCoordTransf->getBasicDisplTotalGrad(gradNumber);
 #if 0
     dqdh.addMatrixVector(0.0, K_pres, dvdh, 1.0);
 #endif
@@ -913,10 +866,10 @@ PrismFrame3d::getResponseSensitivity(int responseID, int gradNumber, Information
 
 
 int
-PrismFrame3d::setParameter(const char **argv, int argc, Parameter &param)
+PrismDeltaFrame3d::setParameter(const char **argv, int argc, Parameter &param)
 {
 
-  int status = this->FiniteElement<2,3,6>::setParameter(argv, argc, param);
+  int status = this->BasicFrame3d::setParameter(argv, argc, param);
 
   if (status != -1)
     return status;
@@ -927,11 +880,6 @@ PrismFrame3d::setParameter(const char **argv, int argc, Parameter &param)
   if (strcmp(argv[0],"E") == 0) {
     param.setValue(E);
     return param.addObject(Param::E,  this);
-  }
-
-  if (strcmp(argv[0],"rho") == 0) {
-    param.setValue(rho);
-    return param.addObject(Param::Rho, this);
   }
 
   if (strcmp(argv[0],"A") == 0) {
@@ -969,22 +917,13 @@ PrismFrame3d::setParameter(const char **argv, int argc, Parameter &param)
     return param.addObject(Param::J, this);
   }
 
-  if (strcmp(argv[0],"releasez") == 0) {
-    param.setValue(releasez);
-    return param.addObject(Param::HingeZ, this);
-  }
-
-  if (strcmp(argv[0],"releasey") == 0) {
-    param.setValue(releasey);
-    return param.addObject(Param::HingeY, this);
-  }
   return -1;
 }
 
 int
-PrismFrame3d::updateParameter(int param, Information &info)
+PrismDeltaFrame3d::updateParameter(int param, Information &info)
 {
-    int status = this->FiniteElement<2,3,6>::updateParameter(param, info);
+    int status = this->BasicFrame3d::updateParameter(param, info);
     if (status != -1)
       return status;
 
@@ -1010,22 +949,6 @@ PrismFrame3d::updateParameter(int param, Information &info)
         Jx = info.theDouble;
         return 0;
 
-      case Param::Rho:
-        rho = info.theDouble;
-        return 0;
-      
-      case Param::HingeZ:
-        releasez = (int)info.theDouble;
-        if (releasez < 0 || releasez > 3)
-          releasez = 0;
-        return 0;
-
-      case Param::HingeY:
-        releasey = (int)info.theDouble;
-        if (releasey < 0 || releasey > 3)
-          releasey = 0;
-        return 0;
-
       default:
         return -1;
     }
@@ -1036,10 +959,10 @@ PrismFrame3d::updateParameter(int param, Information &info)
 
 
 VectorND<6>
-PrismFrame3d::getBasicForceGrad(int gradNumber)
+PrismDeltaFrame3d::getBasicForceGrad(int gradNumber)
 {
 
-  double L   = basic_system->getInitialLength();
+  double L   = theCoordTransf->getInitialLength();
 
   double
       dEIy = 0.0,
@@ -1065,7 +988,7 @@ PrismFrame3d::getBasicForceGrad(int gradNumber)
       dEIz = this->E;
       break;
     default:
-//    if (basic_system->isShapeSensitivity()) {
+//    if (theCoordTransf->isShapeSensitivity()) {
 //      dEIy = E*Iy*dLi;
 //      dEIz = E*Iz*dLi;
 //      dEA  = E*A*dLi;
@@ -1099,11 +1022,11 @@ PrismFrame3d::getBasicForceGrad(int gradNumber)
   if (releasey == 2)   // release J
     dK(3,3) = 3.0*dEIy/L;
 
-  const Vector &v  = basic_system->getBasicTrialDisp();
+  const Vector &v  = theCoordTransf->getBasicTrialDisp();
 
   VectorND<NBV> dq = dK*v;
 
-  double dL = basic_system->getLengthGrad();
+  double dL = theCoordTransf->getLengthGrad();
 
   if (dL != 0.0)
     dq.addMatrixVector(1.0, this->getBasicTangent(State::Pres,0), v, -dL/L);

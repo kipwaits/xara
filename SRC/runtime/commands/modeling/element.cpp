@@ -311,6 +311,7 @@ TclCommand_addElement(ClientData clientData, Tcl_Interp *interp, int argc, TCL_C
 
   else if (strcasecmp(argv[1], "DisplFrame") == 0 ||
            strcasecmp(argv[1], "CubicFrame") == 0 ||
+           strcasecmp(argv[1], "EulerFrame") == 0 ||
            strcasecmp(argv[1], "ForceFrame") == 0 ||
            strcasecmp(argv[1], "MixedFrame") == 0 ||
            strcasecmp(argv[1], "ExactFrame") == 0 ||

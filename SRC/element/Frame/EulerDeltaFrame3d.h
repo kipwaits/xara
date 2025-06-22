@@ -16,7 +16,7 @@
 #include <FrameSection.h>
 
 class Node;
-class FrameTransform3d;
+class CrdTransf;
 class BeamIntegration;
 class Response;
 
@@ -27,7 +27,7 @@ class EulerDeltaFrame3d : public FiniteElement<2, 3, 6>
                       std::array<int,2>& nodes,
                       std::vector<FrameSection*> &,
                       BeamIntegration  &, 
-                      FrameTransform3d &,
+                      CrdTransf &,
                       double rho, int mass_flag, bool use_mass);
 
     EulerDeltaFrame3d();
@@ -105,7 +105,7 @@ class EulerDeltaFrame3d : public FiniteElement<2, 3, 6>
 
     int numSections;
     FrameSection **sections;               // vector of Sections
-    FrameTransform3d *theCoordTransf;      // pointer to manifold transformation
+    CrdTransf *theCoordTransf;      // pointer to manifold transformation
 
     BeamIntegration *beamInt;
 

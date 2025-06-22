@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 // Matrix exponential
@@ -209,7 +211,7 @@ ExpGLn(const MatrixType& arg)
   Internal::matrix_exp_computeUV<MatrixType>(arg, U, V, squarings);
   MatrixType numer =  U + V;
   MatrixType denom =  V - U;
-
+  // TODO: clean this up.
   MatrixType result;
   Matrix rhs(result);
   Matrix lhs(numer);
@@ -245,4 +247,3 @@ test_expm()
   opserr << Matrix(B) ;
   return 0;
 }
-

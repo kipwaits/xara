@@ -221,17 +221,33 @@ CreateFrame(BasicModelBuilder& builder,
         }
 
 
-        if (strcmp(name, "CubicFrame") == 0) {
+        if (strcmp(name, "EulerFrame") == 0) {
+            theElement = new EulerFrame3d(tag, nodes, nIP, sections.data(),
+                                          beamIntegr, *tb, 
+                                          mass, options.mass_flag);
+        }
 
-          theElement = new EulerFrame3d(tag, nodes, nIP, sections.data(),
-                                        beamIntegr, *tb, 
-                                        mass, options.mass_flag);
+        if (strcmp(name, "CubicFrame") == 0) {
+          if (options.shear_flag)
+            theElement = new CubicFrame3d<true,0>(tag, nodes, 
+                                          sections,
+                                          beamIntegr, 
+                                          *theTransf, // TODO: Use FrameTransformBuilder
+                                          mass);
+          else
+            theElement = new CubicFrame3d<false,0>(tag, nodes, 
+                                          sections,
+                                          beamIntegr, 
+                                          *theTransf, // TODO: Use FrameTransformBuilder
+                                          mass);
         } 
 
         else if (strcmp(name, "DisplFrame") == 0) {
           theElement =  new EulerDeltaFrame3d(tag, nodes, sections,
                                               beamIntegr, *theTransf, 
-                                              mass, options.mass_flag, use_mass);
+                                              mass, 
+                                              options.mass_flag, 
+                                              use_mass);
         }
 
         else if ((strstr(name, "Force") != 0) ||
@@ -242,7 +258,9 @@ CreateFrame(BasicModelBuilder& builder,
                 if (nip.value == sections.size())
                   theElement = new ForceDeltaFrame3d<nip.value, 4>(tag, nodes, sections,
                                                 beamIntegr, *tb, 
-                                                mass, options.mass_flag, use_mass,
+                                                mass, 
+                                                options.mass_flag, 
+                                                use_mass,
                                                 max_iter, tol,
                                                 options.shear_flag
                                                 );
@@ -252,7 +270,9 @@ CreateFrame(BasicModelBuilder& builder,
                 if (nip.value == sections.size())
                   theElement = new ForceDeltaFrame3d<nip.value, 6>(tag, nodes, sections,
                                                 beamIntegr, *tb, 
-                                                mass, options.mass_flag, use_mass,
+                                                mass, 
+                                                options.mass_flag, 
+                                                use_mass,
                                                 max_iter, tol,
                                                 options.shear_flag
                                                 );
@@ -916,7 +936,7 @@ TclBasicBuilder_addForceBeamColumn(ClientData clientData, Tcl_Interp *interp,
     Element *theElement = ndm == 2 
                         ? CreateFrame<2, CrdTransf, FrameSection>(*builder, argv[1], tag, multi_nodes, transfTag, 
                                                               section_tags, *beamIntegr, mass, max_iter, tol, options)
-                        : CreateFrame<3, FrameTransform3d, FrameSection>(*builder, argv[1], tag, multi_nodes, transfTag, 
+                        : CreateFrame<3, CrdTransf, FrameSection>(*builder, argv[1], tag, multi_nodes, transfTag, 
                                                                         section_tags, *beamIntegr, mass, max_iter, tol, options);
 
                                                                         
@@ -1298,7 +1318,7 @@ TclBasicBuilder_addBeamWithHinges(ClientData clientData, Tcl_Interp *interp,
       return TCL_ERROR;
 
 
-    FrameTransform3d *theTransf = builder->getTypedObject<FrameTransform3d>(transfTag);
+    CrdTransf *theTransf = builder->getTypedObject<CrdTransf>(transfTag);
     if (theTransf == nullptr)
       return TCL_ERROR;
 

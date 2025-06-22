@@ -24,7 +24,7 @@
 class Triad;
 namespace OpenSees {class Matrix3D;}
 
-class CorotCrdTransf3d02: public FrameTransform3d
+class CorotCrdTransf3d02: public CrdTransf
 {
 public:
     CorotCrdTransf3d02(int tag, const Vector &vecInLocXZPlane,
@@ -54,7 +54,7 @@ public:
     const Matrix &getGlobalStiffMatrix(const Matrix &basicStiff, const Vector &basicForce);
     const Matrix &getInitialGlobalStiffMatrix(const Matrix &basicStiff);
 
-    virtual FrameTransform3d *getCopy() final;
+    virtual CrdTransf *getCopy() final;
 
     // method used to rotate consistent mass matrix
     const Matrix &getGlobalMatrixFromLocal(const Matrix &local);

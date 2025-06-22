@@ -21,10 +21,11 @@
 // Modified by: Xinlong Du and Jerome F. Hajjar, Northeastern University, USA; Year 2020
 // Description: Adapted for analysis of asymmetric sections with introducing
 // high-order axial terms for the basic element formulation
+//
 // References:
 // Du, X., & Hajjar, J. F. (2021). Three-dimensional nonlinear mixed 6-DOF beam element 
 // for thin-walled members. Thin-Walled Structures, 164, 107817. 
-
+//
 #include "MixedBeamColumnAsym3d.h"
 #include <BeamIntegration.h>
 #include <SectionForceDeformation.h>

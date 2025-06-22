@@ -1,7 +1,9 @@
 //===----------------------------------------------------------------------===//
 //
-//        OpenSees - Open System for Earthquake Engineering Simulation    
+//                                   xara
 //
+//===----------------------------------------------------------------------===//
+//                              https://xara.so
 //===----------------------------------------------------------------------===//
 //
 //
@@ -17,7 +19,7 @@ using namespace OpenSees;
 
 template<int ndf>
 BasicFrameTransf3d<ndf>::BasicFrameTransf3d(FrameTransform<2,ndf> *t)
-: FrameTransform3d(t->getTag(), 0),
+: CrdTransf(t->getTag(), 0),
   t(*t)
 {
 
@@ -119,7 +121,7 @@ BasicFrameTransf3d<ndf>::getBasicIncrDeltaDisp()
   static VectorND<6> ub;
   static Vector wrapper(ub);
   VectorND<ndf*2> ul = t.getStateVariation();
-  ub[0] =  ul[1*ndf+0];
+  ub[0] =  ul[1*ndf+0]; // Nj
   ub[1] =  ul[0*ndf+5];
   ub[2] =  ul[1*ndf+5];
   ub[3] =  ul[0*ndf+4];
@@ -279,8 +281,8 @@ BasicFrameTransf3d<ndf>::getInitialGlobalStiffMatrix(const Matrix &KB)
 
 
 template<int ndf>
-FrameTransform3d *
-BasicFrameTransf3d<ndf>::getCopy()
+CrdTransf *
+BasicFrameTransf3d<ndf>::getCopy3d()
 {
   BasicFrameTransf3d *theCopy = new BasicFrameTransf3d(t.getCopy());
   return theCopy;

@@ -31,7 +31,7 @@ public:
                std::array<int, 2>& nodes, 
                int numSections, FrameSection** sectionPtrs, 
                BeamIntegration& bi, 
-               FrameTransform3d& coordTransf,
+               CrdTransf& coordTransf,
                double density, 
                int damp_flag, 
                int geom_flag = true);
@@ -108,7 +108,7 @@ private:
 
 
   BeamIntegration* beamIntegr;        //
-  FrameTransform3d* crdTransf;        // pointer to coordinate transformation object
+  CrdTransf* crdTransf;        // pointer to coordinate transformation object
 
   int numSections;                    //
   FrameSection** sections;            // array of pointers to sections

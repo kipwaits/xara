@@ -75,13 +75,12 @@ G3Parse_newLinearSOE(ClientData, Tcl_Interp* interp, int, G3_Char **const);
 LinearSOE*
 TclDispatch_newPetscSOE(ClientData, Tcl_Interp *interp, int, G3_Char **const);
 
-#if 1 // TODO: implement AnalysisBuilder->getLinearSOE();
+
 int
 TclCommand_systemSize(ClientData clientData, Tcl_Interp *interp, int argc, TCL_Char ** const argv)
 {
   assert(clientData != nullptr);
   LinearSOE *theSOE = ((BasicAnalysisBuilder *)clientData)->getLinearSOE();
-
 
   if (theSOE == nullptr) {
     opserr << "No system has been set";
@@ -92,7 +91,6 @@ TclCommand_systemSize(ClientData clientData, Tcl_Interp *interp, int argc, TCL_C
 
   return TCL_OK;
 }
-#endif
 
 int
 specifySysOfEqnTable(ClientData clientData, Tcl_Interp *interp, int argc, G3_Char ** const argv)

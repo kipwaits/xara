@@ -53,6 +53,7 @@ public:
 
     virtual VectorND<nn*ndf> getStateVariation() final;
     virtual Vector3D getNodePosition(int tag) final;
+    virtual Versor   getNodeRotation(int tag) final;
     virtual Vector3D getNodeRotationLogarithm(int tag) final;
 
     virtual VectorND<nn*ndf>        pushResponse(VectorND<nn*ndf>&pl) override final;
@@ -64,9 +65,6 @@ public:
 
     // Sensitivity
     //
-    // const Vector & getBasicDisplFixedGrad();
-    // const Vector & getBasicDisplTotalGrad(int gradNumber);
-    // const Vector &getGlobalResistingForceShapeSensitivity (const Vector &basicForce, const Vector &p0, int grad);
     bool isShapeSensitivity();
     double getLengthGrad();
     double getd1overLdh();
@@ -101,13 +99,6 @@ private:
 
     int computeElemtLengthAndOrient();
 
-    inline VectorND<nn*ndf> 
-    pullVariation(const VectorND<nn*ndf>& ug, 
-                const Matrix3D& R, 
-                const std::array<Vector3D, nn> *offset = nullptr,
-                int offset_flags = 0);
-
-
     template<const Vector& (Node::*Getter)()>
     const Vector3D
     pullPosition(int node)
@@ -137,7 +128,7 @@ private:
 
     std::array<Vector3D, nn> *offsets;
     int offset_flags;
-
+    Matrix3D R0;
     Vector3D xi, xj, vz;
     double L;           // undeformed element length
 

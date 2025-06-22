@@ -231,7 +231,7 @@ getKs2Matrix(Matrix3D& A, const Vector3D& e1, const Vector3D& r1, const double L
 CorotCrdTransf3d02::CorotCrdTransf3d02(int tag, const Vector &vecInLocXZPlane,
                                    const Vector &rigJntOffsetI,
                                    const Vector &rigJntOffsetJ):
-  FrameTransform3d(tag, CRDTR_TAG_CorotCrdTransf3d02),
+  CrdTransf(tag, CRDTR_TAG_CorotCrdTransf3d02),
   vAxis(3), nodeIOffset(3), nodeJOffset(3), xAxis(3),
   nodeIPtr(0), nodeJPtr(0), L(0), Ln(0),
   // alphaIq(4), alphaJq(4), alphaIqcommit(4), alphaJqcommit(4), 
@@ -307,7 +307,7 @@ CorotCrdTransf3d02::CorotCrdTransf3d02(int tag, const Vector &vecInLocXZPlane,
 // constructor:
 // invoked by a FEM_ObjectBroker, recvSelf() needs to be invoked on this object.
 CorotCrdTransf3d02::CorotCrdTransf3d02():
-  FrameTransform3d(0, CRDTR_TAG_CorotCrdTransf3d02),
+  CrdTransf(0, CRDTR_TAG_CorotCrdTransf3d02),
   vAxis(3), nodeIOffset(3), nodeJOffset(3), xAxis(3),
   nodeIPtr(0), nodeJPtr(0), L(0), Ln(0),
 //  alphaIq(4), alphaJq(4),  alphaIqcommit(4), alphaJqcommit(4), 
@@ -1331,7 +1331,7 @@ CorotCrdTransf3d02::getDeformedLength()
 }
 
 
-FrameTransform3d *
+CrdTransf *
 CorotCrdTransf3d02::getCopy()
 {
   // create a new instance of CorotCrdTransf3d02

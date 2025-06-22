@@ -15,7 +15,6 @@
 #include <FrameSection.h>
 
 class Node;
-class FrameTransform3d;
 class BeamIntegration;
 class Response;
 class FrameTransformBuilder;
@@ -35,7 +34,6 @@ class EulerFrame3d : public BasicFrame3d,
     ~EulerFrame3d();
 
     const char *getClassType() const {return "EulerFrame3d";}
-    static constexpr const char* class_name = "EulerFrame3d";
 
 
     // public methods to set the state of the element   
@@ -86,7 +84,7 @@ class EulerFrame3d : public BasicFrame3d,
 
 
 protected:
-    // For BasicFrame3d
+    // Personal
     virtual  OpenSees::VectorND<6>&   getBasicForce() final;
     virtual  OpenSees::MatrixND<6,6>& getBasicTangent(State state, int rate) final;
     // For FiniteElement

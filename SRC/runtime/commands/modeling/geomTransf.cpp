@@ -119,6 +119,30 @@ TclCommand_addTransformBuilder(ClientData clientData, Tcl_Interp *interp, int ar
       parsed_xz = true;
     }
 
+    else if (strcmp(argv[argi], "-pull") == 0) {
+      // -pull iter|incr|init|default
+      argi++;
+      if (argi == argc) {
+        opserr << OpenSees::PromptValueError 
+               << "missing pull type\n";
+        return TCL_ERROR;
+      }
+
+      if (strcmp(argv[argi], "iter") == 0) {
+        transform.offset_flags |= LogIter;
+      } else if (strcmp(argv[argi], "incr") == 0) {
+        transform.offset_flags |= LogIncr;
+      } else if (strcmp(argv[argi], "init") == 0) {
+        transform.offset_flags |= LogInit;
+      } else if (strcmp(argv[argi], "default") == 0) {
+        transform.offset_flags |= LogDefault;
+      } else {
+        opserr << OpenSees::PromptValueError 
+               << "invalid pull type\n";
+        return TCL_ERROR;
+      }
+    }
+
     else if (strcmp(argv[argi], "-offset-local") == 0) {
       transform.offset_flags |= OffsetLocal;
       argi++;
@@ -138,6 +162,7 @@ TclCommand_addTransformBuilder(ClientData clientData, Tcl_Interp *interp, int ar
       constexpr static const char * const offset_nodes[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9"};
       constexpr static int MAX_OFFSETS = sizeof(offset_nodes)/sizeof(offset_nodes[0]);
       auto TclCommand_addOffset  = [](ClientData cd, Tcl_Interp* interp, int oargc, const char** const oargv) ->int {
+        
         FrameTransformBuilder* transform = static_cast<FrameTransformBuilder*>(cd);
         assert(transform != nullptr);
         if (oargc < 2) {
@@ -183,8 +208,10 @@ TclCommand_addTransformBuilder(ClientData clientData, Tcl_Interp *interp, int ar
           Tcl_Free((char *)xzarg);
         return TCL_OK;
       };
+
       for (int i=0; i<MAX_OFFSETS; i++) {
-        Tcl_CreateCommand(interp, offset_nodes[i], TclCommand_addOffset, &transform, nullptr);
+        Tcl_CreateCommand(interp, offset_nodes[i], 
+                          TclCommand_addOffset, &transform, nullptr);
       }
 
       if (Tcl_Eval(interp, argv[argi]) != TCL_OK) {
@@ -293,8 +320,8 @@ TclCommand_addGeomTransf(ClientData clientData, Tcl_Interp *interp, int argc,
              << "\n";
       return TCL_ERROR;
     }
-    FrameTransform3d* t = new BasicFrameTransf3d(tb->template create<2,6>());
-    return builder->addTaggedObject<FrameTransform3d>(*t);
+    CrdTransf* t = new BasicFrameTransf3d(tb->template create<2,6>());
+    return builder->addTaggedObject<CrdTransf>(*t);
   }
 
   //
@@ -464,7 +491,7 @@ TclCommand_addGeomTransf(ClientData clientData, Tcl_Interp *interp, int argc,
     //
     // construct the transformation
     //
-    FrameTransform3d *crdTransf3d=nullptr;
+    CrdTransf *crdTransf3d=nullptr;
 
     if (strcmp(argv[1], "Linear") == 0)
         crdTransf3d = new LinearCrdTransf3d(tag, vecxzPlane, jntOffsetI, jntOffsetJ);
@@ -487,7 +514,7 @@ TclCommand_addGeomTransf(ClientData clientData, Tcl_Interp *interp, int argc,
     }
 
     // add the transformation to the modelBuilder
-    if (builder->addTaggedObject<FrameTransform3d>(*crdTransf3d) != TCL_OK) {
+    if (builder->addTaggedObject<CrdTransf>(*crdTransf3d) != TCL_OK) {
       opserr << OpenSees::PromptValueError 
              << "Failed to add transformation to model\n";
       return TCL_ERROR;

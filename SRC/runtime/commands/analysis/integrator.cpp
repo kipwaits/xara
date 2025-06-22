@@ -5,7 +5,8 @@
 //===----------------------------------------------------------------------===//
 //                              https://xara.so
 //===----------------------------------------------------------------------===//
-// Description: This file implements selection of an integrator object.
+//
+// Description: This file implements selection of an integrator.
 //
 #include <G3_Logging.h>
 #include <assert.h>
@@ -299,8 +300,6 @@ G3Parse_newEQPathIntegrator(ClientData clientData, Tcl_Interp *interp, int argc,
 
     if (Tcl_GetDouble(interp, argv[2], &arcLength) != TCL_OK) {
       opserr << "WARNING integrator EQPath $arc_length $type \n";
-      opserr << " https://doi.org/10.12989/sem.2013.48.6.849         \n";
-      opserr << " https://doi.org/10.12989/sem.2013.48.6.879         \n";
       return nullptr;
     }
 

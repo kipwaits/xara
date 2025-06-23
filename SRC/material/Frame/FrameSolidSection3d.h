@@ -46,22 +46,22 @@ class FrameSolidSection3d : public FrameSection
     int   setTrialSectionDeformation(const Vector &e); 
     const Vector &getSectionDeformation();
 
-    int   getIntegral(Field field, State state, double& value) const override final;
-    const Vector &getStressResultant();
-    const Matrix &getSectionTangent();
-    const Matrix &getInitialTangent();
+    int   getIntegral(Field field, State state, double& value) const final;
+    const Vector &getStressResultant() override;
+    const Matrix &getSectionTangent() override;
+    const Matrix &getInitialTangent() override;
 
-    int   commitState();
-    int   revertToLastCommit();    
-    int   revertToStart();
+    int   commitState() override;
+    int   revertToLastCommit() override;    
+    int   revertToStart() override;
  
     FrameSection *getFrameCopy();
     const ID &getType();
     int getOrder () const;
     
-    int sendSelf(int tag, Channel &);
-    int recvSelf(int tag, Channel &, FEM_ObjectBroker &);
-    void Print(OPS_Stream &s, int flag = 0);
+    int sendSelf(int tag, Channel &) override;
+    int recvSelf(int tag, Channel &, FEM_ObjectBroker &) override;
+    void Print(OPS_Stream &s, int flag = 0) override;
 	    
     Response *setResponse(const char **argv, int argc, OPS_Stream &s);
     int getResponse(int responseID, Information &info);

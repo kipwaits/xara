@@ -24,7 +24,7 @@ public:
 
     virtual ~NosbProj() {};
 
-    virtual void init_shape() override final;
+    virtual void init_shape() final;
 
     virtual void form_trial() final;
 

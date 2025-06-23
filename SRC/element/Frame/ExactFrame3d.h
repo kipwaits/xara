@@ -53,7 +53,7 @@ public:
   virtual const Matrix &getInitialStiff();
 
   virtual int update() final;
-  virtual int addLoad(ElementalLoad* , double scale) override final;
+  virtual int addLoad(ElementalLoad* , double scale) final;
 
   virtual int revertToStart();
   virtual int revertToLastCommit();

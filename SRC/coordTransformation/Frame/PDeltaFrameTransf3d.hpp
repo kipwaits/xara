@@ -39,15 +39,15 @@ public:
     double getInitialLength();
     double getDeformedLength();
 
-    virtual int initialize(std::array<Node*, nn>& new_nodes);
-    virtual int update();
-    virtual int commit();
-    virtual int revertToLastCommit();        
-    virtual int revertToStart();
+    int initialize(std::array<Node*, nn>& new_nodes) final;
+    int update() final;
+    int commit() final;
+    int revertToLastCommit() final;
+    int revertToStart() final;
 
-    virtual VectorND<nn*ndf> getStateVariation() final;
-    virtual Vector3D getNodePosition(int tag) final;
-    virtual Vector3D getNodeRotationLogarithm(int tag) final;
+    VectorND<nn*ndf> getStateVariation() final;
+    Vector3D getNodePosition(int tag) final;
+    Vector3D getNodeRotationLogarithm(int tag) final;
     virtual const std::array<Vector3D,nn> *getRigidOffsets() const { return linear.getRigidOffsets();}
 
     virtual VectorND<nn*ndf>    pushResponse(VectorND<nn*ndf>&pl) final;

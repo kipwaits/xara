@@ -248,8 +248,6 @@ RigidFrameTransf<nn,ndf,BasisT>::getStateVariation()
   // return RigidFrameTransf<nn,ndf,BasisT>::pullVariation(ug, R, offsets, offset_flags);
 
 
-  constexpr static int N = nn * ndf;
-
   // VectorND<N> ul = ug;
 
   // (1) Global Offsets

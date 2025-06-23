@@ -76,7 +76,7 @@ class SectionAggregator : public FrameSection
     int recvSelf(int cTag, Channel &theChannel,
                  FEM_ObjectBroker &theBroker);
 
-    int getIntegral(Field field, State state, double& value) const override final;
+    int getIntegral(Field field, State state, double& value) const final;
 
     Response *setResponse(const char **argv, int argc, OPS_Stream &s);
     int getResponse(int responseID, Information &info);

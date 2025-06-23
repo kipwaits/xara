@@ -1,6 +1,6 @@
 [project]
 name = "opensees"
-version = "0.1.20"
+version = "0.1.21"
 
 readme = "about/README.pypi.md"
 
@@ -34,12 +34,12 @@ classifiers = [
 ]
 
 keywords = [
-    "seismic",
     "computational-mechanics",
-    "structural-analysis",
+    "structural-engineering",
     "finite-element-analysis",
     "earthquake",
     "engineering",
+    "xara"
 ] 
 
 dependencies = [

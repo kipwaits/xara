@@ -64,22 +64,22 @@ class HeapNode : public Node
 //  virtual const Vector &getRigidAccel();
 
     // public methods for updating the trial response quantities
-    virtual int setTrialDisp  (double value, int dof) override final;
-    virtual int setTrialDisp  (const Vector &) override final;
-    virtual int incrTrialDisp (const Vector &) override final;
-    virtual int setTrialVel   (const Vector &) override final;
-    virtual int setTrialAccel (const Vector &) override final;
-    virtual int incrTrialVel  (const Vector &) override final;
-    virtual int incrTrialAccel(const Vector &) override final;
+    virtual int setTrialDisp  (double value, int dof) final;
+    virtual int setTrialDisp  (const Vector &) final;
+    virtual int incrTrialDisp (const Vector &) final;
+    virtual int setTrialVel   (const Vector &) ;
+    virtual int setTrialAccel (const Vector &) ;
+    virtual int incrTrialVel  (const Vector &) ;
+    virtual int incrTrialAccel(const Vector &) ;
 
     // Dynamics
-    virtual const Matrix &getMass() override final;
-    virtual const Matrix &getDamp() override final;
-    virtual int setMass(const Matrix &theMass) override final;
-    virtual int setNumColR(int numCol) override final;
-    virtual int setR(int row, int col, double Value) override final;
-    virtual const Vector &getRV(const Vector &V) override final;
-    virtual int setRayleighDampingFactor(double alphaM) override final;
+    virtual const Matrix &getMass() ;
+    virtual const Matrix &getDamp() final;
+    virtual int setMass(const Matrix &theMass) final;
+    virtual int setNumColR(int numCol) final;
+    virtual int setR(int row, int col, double Value) final;
+    virtual const Vector &getRV(const Vector &V) final;
+    virtual int setRayleighDampingFactor(double alphaM) final;
 
     // Eigen vectors
     virtual int setNumEigenvectors(int numVectorsToStore);

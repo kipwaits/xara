@@ -34,30 +34,30 @@ public:
                       int offset_flags = 0);
 
     ~RigidFrameTransf();
-    
+
     const char *getClassType() const {return "RigidFrameTransf";}
     
     virtual int getLocalAxes(Vector3D &x, Vector3D &y, Vector3D &z) const;
     
     virtual FrameTransform<nn,ndf> *getCopy() const;
 
-    virtual double getInitialLength();
-    virtual double getDeformedLength();
-    virtual const std::array<Vector3D,nn> *getRigidOffsets() const {return offsets;}
+    double getInitialLength() final;
+    double getDeformedLength() final;
+    const std::array<Vector3D,nn> *getRigidOffsets() const final {return offsets;}
     
-    virtual int initialize(std::array<Node*, nn>& new_nodes) override final;
-    virtual int update() override final;
-    virtual int commit() override final;
-    virtual int revertToLastCommit() override final;
-    virtual int revertToStart() override final;
+    int initialize(std::array<Node*, nn>& new_nodes) final;
+    int update() final;
+    int commit() final;
+    int revertToLastCommit() final;
+    int revertToStart() final;
 
-    virtual VectorND<nn*ndf> getStateVariation() final;
-    virtual Vector3D getNodePosition(int tag) final;
-    virtual Versor   getNodeRotation(int tag) final;
-    virtual Vector3D getNodeRotationLogarithm(int tag) final;
+    VectorND<nn*ndf> getStateVariation() final;
+    Vector3D getNodePosition(int tag) final;
+    Versor   getNodeRotation(int tag) /* final */;
+    Vector3D getNodeRotationLogarithm(int tag) final;
 
-    virtual VectorND<nn*ndf>        pushResponse(VectorND<nn*ndf>&pl) override final;
-    virtual MatrixND<nn*ndf,nn*ndf> pushResponse(MatrixND<nn*ndf,nn*ndf>& kl, const VectorND<nn*ndf>& pl) override final;
+    VectorND<nn*ndf>        pushResponse(VectorND<nn*ndf>&pl) final;
+    MatrixND<nn*ndf,nn*ndf> pushResponse(MatrixND<nn*ndf,nn*ndf>& kl, const VectorND<nn*ndf>& pl) final;
 
     // // method used to rotate consistent mass matrix
     // const Matrix &getGlobalMatrixFromLocal(const Matrix &local);

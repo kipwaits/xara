@@ -43,18 +43,18 @@ public:
     virtual double getDeformedLength();
     virtual const std::array<Vector3D,nn> *getRigidOffsets() const {return offsets;}
     
-    virtual int initialize(std::array<Node*, nn>& new_nodes) override final;
-    virtual int update() override final;
-    virtual int commit() override final;
-    virtual int revertToLastCommit() override final;
-    virtual int revertToStart() override final;
+    virtual int initialize(std::array<Node*, nn>& new_nodes) final;
+    virtual int update() final;
+    virtual int commit() final;
+    virtual int revertToLastCommit() final;
+    virtual int revertToStart() final;
 
     virtual VectorND<nn*ndf> getStateVariation() final;
     virtual Vector3D getNodePosition(int tag) final;
     virtual Vector3D getNodeRotationLogarithm(int tag) final;
 
-    virtual VectorND<nn*ndf>        pushResponse(VectorND<nn*ndf>&pl) override final;
-    virtual MatrixND<nn*ndf,nn*ndf> pushResponse(MatrixND<nn*ndf,nn*ndf>& kl, const VectorND<nn*ndf>& pl) override final;
+    virtual VectorND<nn*ndf>        pushResponse(VectorND<nn*ndf>&pl) final;
+    virtual MatrixND<nn*ndf,nn*ndf> pushResponse(MatrixND<nn*ndf,nn*ndf>& kl, const VectorND<nn*ndf>& pl) final;
 
     // // method used to rotate consistent mass matrix
     // const Matrix &getGlobalMatrixFromLocal(const Matrix &local);

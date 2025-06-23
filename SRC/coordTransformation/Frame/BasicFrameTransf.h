@@ -32,21 +32,21 @@ public:
 
     virtual int getLocalAxes(Vector &x, Vector &y, Vector &z);
 
-    virtual CrdTransf *getCopy3d() override final;
+    virtual CrdTransf *getCopy3d() final;
 
     virtual double getInitialLength();
     virtual double getDeformedLength();
 
-    virtual int initialize(Node *ni, Node *nj) override final;
-    virtual int update() override final;
-    virtual int commitState() override final;
-    virtual int revertToLastCommit() override final;
-    virtual int revertToStart() override final;
+    virtual int initialize(Node *ni, Node *nj) final;
+    virtual int update() final;
+    virtual int commitState() final;
+    virtual int revertToLastCommit() final;
+    virtual int revertToStart() final;
 
-    virtual const Vector &getBasicTrialDisp() override final;
-    virtual const Vector &getBasicIncrDisp() override final;
-    virtual const Vector &getBasicIncrDeltaDisp() override final;
-    virtual const Vector &getBasicTrialVel() override final;
+    virtual const Vector &getBasicTrialDisp() final;
+    virtual const Vector &getBasicIncrDisp() final;
+    virtual const Vector &getBasicIncrDeltaDisp() final;
+    virtual const Vector &getBasicTrialVel() final;
 
     virtual const Vector &getGlobalResistingForce(const Vector &basicForce, const Vector &p0) final;
     virtual const Matrix &getGlobalStiffMatrix(const Matrix &basicStiff, const Vector &basicForce) final;

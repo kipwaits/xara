@@ -39,10 +39,9 @@
 #include <iostream>
 
 FullGenLinSOE::FullGenLinSOE(FullGenLinSolver &theSolvr)
-:LinearSOE(theSolvr, LinSOE_TAGS_FullGenLinSOE),
+: LinearSOE(theSolvr, LinSOE_TAGS_FullGenLinSOE),
  size(0), A(0), B(0), X(0), 
- matA(0),
- Asize(0), Bsize(0), 
+ matA(nullptr),
  factored(false)
 {
     theSolvr.setLinearSOE(*this);
@@ -52,13 +51,10 @@ FullGenLinSOE::FullGenLinSOE(FullGenLinSolver &theSolvr)
 FullGenLinSOE::FullGenLinSOE(int N, FullGenLinSolver &theSolvr)
 :LinearSOE(theSolvr, LinSOE_TAGS_FullGenLinSOE),
  size(0), A(0), B(N), X(N), 
- matA(0),
- Asize(0), Bsize(0), 
+ matA(nullptr),
  factored(false)
 {
     size = N;
-    Bsize = size;
-    Asize = size*size;
     A = new double[size*size]{};
     matA  = new Matrix(A, size, size);
 
@@ -75,15 +71,15 @@ FullGenLinSOE::FullGenLinSOE(int N, FullGenLinSolver &theSolvr)
     
 FullGenLinSOE::~FullGenLinSOE()
 {
-    if (A != 0) delete [] A;     
-    if (matA != 0) delete matA;        
+  if (A != 0) delete [] A;     
+  if (matA != 0) delete matA;        
 }
 
 
 int
 FullGenLinSOE::getNumEqn() const
 {
-    return size;
+  return size;
 }
 
 int 
@@ -93,18 +89,13 @@ FullGenLinSOE::setSize(Graph &theGraph)
     int oldSize = size;
     size = theGraph.getNumVertex();
 
-    if (size*size > Asize) { // we have to get another space for A
+    if (size > oldSize) { // we have to get another space for A
 
-        if (A != 0) 
+        if (A != nullptr) 
             delete [] A;
 
         A = new double[size*size];
-            Asize = size*size;
     }
-
-    // zero the matrix
-    for (int i=0; i<Asize; i++)
-        A[i] = 0;
 
     factored = false;
 
@@ -115,11 +106,12 @@ FullGenLinSOE::setSize(Graph &theGraph)
 
 
     // create new Vectors
-    if (size != oldSize) {
+    if (size != oldSize || matA == nullptr) {
         if (matA != nullptr)
             delete matA;
-        matA  = new Matrix(A,Bsize, Bsize);	
+        matA  = new Matrix(A, size, size);	
     }
+    matA->Zero();
 
     // invoke setSize() on the Solver    
     LinearSOESolver *theSolvr = this->getSolver();
@@ -155,10 +147,10 @@ FullGenLinSOE::addA(const Matrix &m, const ID &id, double fact)
 		    if (row <size && row >= 0) {
 			 double *APtr = startColiPtr + row;
 			 *APtr += m(j,i);
-		     }
-		}  // for j
+		    }
+		}
 	    } 
-	}  // for i
+	}
     } else {
 	for (int i=0; i<idSize; i++) {
 	    int col = id(i);
@@ -307,7 +299,7 @@ FullGenLinSOE::formAp(const Vector &p, Vector &Ap)
 void 
 FullGenLinSOE::setX(int loc, double value)
 {
-    if (loc < size && loc >=0)
+  if (loc < size && loc >=0)
 	X[loc] = value;
 }
 
@@ -340,12 +332,12 @@ FullGenLinSOE::getA()
 double 
 FullGenLinSOE::normRHS()
 {
-    double norm =0.0;
-    for (int i=0; i<size; i++) {
-        double Yi = B[i];
-        norm += Yi*Yi;
-    }
-    return sqrt(norm);    
+  double norm =0.0;
+  for (int i=0; i<size; i++) {
+      double Yi = B[i];
+      norm += Yi*Yi;
+  }
+  return sqrt(norm);
 }    
 
 
@@ -370,13 +362,13 @@ FullGenLinSOE::setFullGenSolver(FullGenLinSolver &newSolver)
 int 
 FullGenLinSOE::sendSelf(int commitTag, Channel &theChannel)
 {
-    return 0;
+  return 0;
 }
 
 int 
 FullGenLinSOE::recvSelf(int commitTag, Channel &theChannel, FEM_ObjectBroker &theBroker)
 {
-    return 0;
+  return 0;
 }
 
 

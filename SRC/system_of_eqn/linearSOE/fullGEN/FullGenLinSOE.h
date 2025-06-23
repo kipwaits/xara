@@ -87,7 +87,6 @@ class FullGenLinSOE : public LinearSOE
     double *A;
     Vector B, X;  
     Matrix *matA;
-    int Asize, Bsize;
     bool factored;
 };
 

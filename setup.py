@@ -3,6 +3,7 @@ import os
 import sys
 from glob import glob
 from pathlib import Path
+import subprocess
 from os.path import basename, splitext
 
 import amoeba
@@ -10,8 +11,8 @@ import setuptools
 
 #--------------------------------------------------
 
-version    = "0.0.59"
-build_type = "local"
+version    = "0.1.20"
+build_type = os.environ.get("OPENSEESRT_BUILD", "local")
 
 #--------------------------------------------------
 
@@ -26,6 +27,11 @@ options = {
             "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION:BOOL=FALSE",
 #           "-DProfileBuild:BOOL=TRUE",
         ],
+        "light": [
+            "-DCMAKE_BUILD_TYPE=RELEASE",
+            "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION:BOOL=FALSE",
+#           "-DProfileBuild:BOOL=TRUE",
+        ],
         "debug": [
             "-DCMAKE_BUILD_TYPE=DEBUG",
             "-DCMAKE_INTERPROCEDURAL_OPTIMIZATION:BOOL=FALSE",
@@ -33,8 +39,11 @@ options = {
         "no-build": []
 }
 
+use_conan = False
+
 if os.name == "nt":
     EnvArgs = []
+    use_conan = True
 
 elif "CONDA_PREFIX" in os.environ:
     # Ensure that conda libraries and compilers are used
@@ -51,6 +60,7 @@ else:
 
 
 try:
+    assert False
     assert os.name != "nt"
     import pybind11
     OpenSeesPyRT_Target = ["--target", "OpenSeesPyRT"]
@@ -64,19 +74,48 @@ except (AssertionError,ImportError):
     OpenSeesPyRT_Target = []
 
 
+if use_conan:
+    EnvArgs + ["-DCMAKE_TOOLCHAIN_FILE=conan/conan_toolchain.cmake"]
+
+
+class BuildOpenSeesRT(amoeba.BuildExtension):
+    def build_extension(self, ext):
+        # Ensure Conan dependencies are installed using Conan 2.0 commands
+        if use_conan:
+            self.run_conan(ext)
+
+        super().build_extension(ext)
+
+    def run_conan(self, ext):
+        toolchain = str(Path(".").absolute()/"build"/"generators"/"conan_toolchain.cmake")
+        ext.cmake_configure_options.append(
+                f"-DCMAKE_TOOLCHAIN_FILE={toolchain}"
+        )
+
+        # Create the Conan profile and run the Conan install command
+        subprocess.run([
+            "conan", "install", ".",
+            "--build=missing",
+        ])
+
+
+# BuildOpenSeesRT = amoeba.BuildExtension
+
 if __name__ == "__main__":
     setuptools.setup(
-       data_files=[('bin', [*map(str,Path("win32/").glob("*.*"))]),
+       data_files=[
+           ('bin', [*map(str,Path("win32/").glob("*.*"))]),
        ] if os.name == "nt" else [],
-       cmdclass = {"build_ext": amoeba.BuildExtension,
-                   "cmake": amoeba.CMakeCommand} if build_type != "no-build" else {},
+       cmdclass = {
+            "build_ext": BuildOpenSeesRT, # amoeba.BuildExtension,
+            "cmake": amoeba.CMakeCommand
+       } if build_type != "no-build" else {},
        ext_modules = [
            amoeba.CMakeExtension(
                name = build_type,
                install_prefix="opensees",
                cmake_build_type=options[build_type][0].split("=")[-1],
                cmake_configure_options = [
-#                  "-G", "Unix Makefiles",
                    *EnvArgs,
                    *options[build_type],
                    f"-DOPENSEESRT_VERSION={version}",
